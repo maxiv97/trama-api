@@ -4,10 +4,12 @@ import { APP_GUARD } from '@nestjs/core';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AgreementsModule } from './agreements/agreements.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { GarmentsModule } from './garments/garments.module';
+import { ProposalsModule } from './proposals/proposals.module';
 import { SeedModule } from './seed/seed.module';
 import { UsersModule } from './users/users.module';
 
@@ -23,6 +25,8 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     AuthModule,
     GarmentsModule,
+    AgreementsModule,
+    ProposalsModule,
     SeedModule,
   ],
   controllers: [AppController],
