@@ -1,8 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AuthModule } from './auth/auth.module';
+import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { RolesGuard } from './auth/roles.guard';
+import { SeedModule } from './seed/seed.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -13,8 +19,15 @@ import { AppService } from './app.service';
         uri: config.get<string>('MONGODB_URI', 'mongodb://localhost:27017/trama'),
       }),
     }),
+    UsersModule,
+    AuthModule,
+    SeedModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+  ],
 })
 export class AppModule {}
