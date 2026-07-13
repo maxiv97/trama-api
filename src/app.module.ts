@@ -11,6 +11,7 @@ import { RolesGuard } from './auth/roles.guard';
 import { GarmentsModule } from './garments/garments.module';
 import { ProposalsModule } from './proposals/proposals.module';
 import { ReceptionsModule } from './receptions/receptions.module';
+import { SalesModule } from './sales/sales.module';
 import { SeedModule } from './seed/seed.module';
 import { UsersModule } from './users/users.module';
 
@@ -29,6 +30,7 @@ import { UsersModule } from './users/users.module';
     AgreementsModule,
     ProposalsModule,
     ReceptionsModule,
+    SalesModule,
     SeedModule,
   ],
   controllers: [AppController],
