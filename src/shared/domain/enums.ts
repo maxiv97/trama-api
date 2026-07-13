@@ -28,6 +28,8 @@ export type ReceptionDiscrepancy =
   | 'accessories'
   | 'hygiene';
 
+export type ProposalStatus = 'under_review' | 'counteroffer' | 'agreed' | 'no_agreement';
+
 export type PaymentMethod = 'cash' | 'transfer';
 
 export type PayoutStatus = 'pending' | 'paid' | 'overdue';
