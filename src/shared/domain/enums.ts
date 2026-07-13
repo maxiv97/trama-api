@@ -16,6 +16,8 @@ export type EventActor = 'consignor' | 'merchant' | 'system';
 
 export type Role = 'consignor' | 'merchant';
 
+export type AccountStatus = 'active' | 'pending' | 'suspended';
+
 export type ReceptionResult = 'accepted' | 'with_remarks' | 'rejected';
 
 export type ReceptionDiscrepancy =
