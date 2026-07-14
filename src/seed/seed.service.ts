@@ -2,11 +2,29 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
 import { Model } from 'mongoose';
+import { Agreement } from '../agreements/schemas/agreement.schema';
+import { Garment } from '../garments/schemas/garment.schema';
+import { Notification } from '../notifications/schemas/notification.schema';
+import { Proposal } from '../proposals/schemas/proposal.schema';
+import { Sale } from '../sales/schemas/sale.schema';
 import { Consignor } from '../users/schemas/consignor.schema';
 import { Merchant, MerchantDocument } from '../users/schemas/merchant.schema';
 import { User } from '../users/schemas/user.schema';
+import {
+  MERCHANT_KEY,
+  SEED_AGREEMENTS,
+  SEED_GARMENTS,
+  SEED_NOTIFICATIONS,
+  SEED_PROPOSALS,
+  SEED_SALES,
+} from './seed-data';
 
 const SEED_PASSWORD = 'trama1234';
+
+export interface SeedRefs {
+  userByKey: Map<string, string>;
+  salesPointByKey: Map<string, string>;
+}
 
 @Injectable()
 export class SeedService {
@@ -16,13 +34,20 @@ export class SeedService {
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(Consignor.name) private readonly consignorModel: Model<Consignor>,
     @InjectModel(Merchant.name) private readonly merchantModel: Model<Merchant>,
+    @InjectModel(Garment.name) private readonly garmentModel: Model<Garment>,
+    @InjectModel(Proposal.name) private readonly proposalModel: Model<Proposal>,
+    @InjectModel(Agreement.name) private readonly agreementModel: Model<Agreement>,
+    @InjectModel(Sale.name) private readonly saleModel: Model<Sale>,
+    @InjectModel(Notification.name) private readonly notificationModel: Model<Notification>,
   ) {}
 
-  async seedUsers(): Promise<void> {
+  async seedUsers(): Promise<SeedRefs> {
     await this.userModel.deleteMany({});
     const password = await bcrypt.hash(SEED_PASSWORD, 10);
+    const userByKey = new Map<string, string>();
+    const salesPointByKey = new Map<string, string>();
 
-    await this.consignorModel.create([
+    const [ana, luis] = await this.consignorModel.create([
       {
         name: 'Ana Gómez',
         email: 'ana@example.com',
@@ -46,8 +71,10 @@ export class SeedService {
         password,
       },
     ] as unknown as Consignor[]);
+    userByKey.set('con-ana', ana.id);
+    userByKey.set('con-luis', luis.id);
 
-    await this.createMerchant({
+    const trama = await this.createMerchant({
       name: 'María López',
       email: 'contacto@tramaboutique.com',
       phone: '351-3000001',
@@ -83,8 +110,11 @@ export class SeedService {
         },
       ],
     });
+    userByKey.set(MERCHANT_KEY, trama.id);
+    salesPointByKey.set('sp-nc', this.pointId(trama, 0));
+    salesPointByKey.set('sp-cr', this.pointId(trama, 1));
 
-    await this.createMerchant({
+    const vintage = await this.createMerchant({
       name: 'Sofía Paz',
       email: 'hola@vintagecba.com',
       phone: '351-3000002',
@@ -109,13 +139,81 @@ export class SeedService {
         },
       ],
     });
+    userByKey.set('mer-vintage', vintage.id);
+    salesPointByKey.set('sp-gu', this.pointId(vintage, 0));
 
     this.logger.log('Seeded 2 consignors and 2 merchants');
+    return { userByKey, salesPointByKey };
+  }
+
+  async seedAll(): Promise<void> {
+    const { userByKey, salesPointByKey } = await this.seedUsers();
+    await Promise.all([
+      this.garmentModel.deleteMany({}),
+      this.proposalModel.deleteMany({}),
+      this.agreementModel.deleteMany({}),
+      this.saleModel.deleteMany({}),
+      this.notificationModel.deleteMany({}),
+    ]);
+
+    const merchantId = userByKey.get(MERCHANT_KEY);
+    const garmentByKey = new Map<string, string>();
+
+    for (const data of SEED_GARMENTS) {
+      const { key, consignorKey, salesPointKey, ...rest } = data;
+      const garment = await this.garmentModel.create({
+        ...rest,
+        consignorId: userByKey.get(consignorKey),
+        merchantId,
+        salesPointId: salesPointByKey.get(salesPointKey),
+      } as unknown as Garment);
+      garmentByKey.set(key, garment.id);
+    }
+
+    await this.proposalModel.create(
+      SEED_PROPOSALS.map(({ garmentKey, ...rest }) => ({
+        ...rest,
+        garmentId: garmentByKey.get(garmentKey),
+      })) as unknown as Proposal[],
+    );
+
+    await this.agreementModel.create(
+      SEED_AGREEMENTS.map(({ garmentKey, ...rest }) => ({
+        ...rest,
+        garmentId: garmentByKey.get(garmentKey),
+      })) as unknown as Agreement[],
+    );
+
+    await this.saleModel.create(
+      SEED_SALES.map(({ garmentKey, ...rest }) => ({
+        ...rest,
+        garmentId: garmentByKey.get(garmentKey),
+      })) as unknown as Sale[],
+    );
+
+    await this.notificationModel.create(
+      SEED_NOTIFICATIONS.map(({ userKey, garmentKey, base, type, text, date }) => ({
+        userId: userByKey.get(userKey),
+        type,
+        text,
+        date,
+        read: false,
+        target: `${base}/garment/${garmentByKey.get(garmentKey)}`,
+      })) as unknown as Notification[],
+    );
+
+    this.logger.log(
+      `Seeded ${SEED_GARMENTS.length} garments, ${SEED_PROPOSALS.length} proposals, ${SEED_AGREEMENTS.length} agreements, ${SEED_SALES.length} sales, ${SEED_NOTIFICATIONS.length} notifications`,
+    );
+  }
+
+  private pointId(merchant: MerchantDocument, index: number): string {
+    return (merchant.salesPoints[index] as unknown as { id: string }).id;
   }
 
   private async createMerchant(
     data: Record<string, unknown> & { salesPoints: Record<string, unknown>[] },
-  ): Promise<void> {
+  ): Promise<MerchantDocument> {
     const { salesPoints, ...merchantData } = data;
     const merchant: MerchantDocument = new this.merchantModel({
       ...merchantData,
@@ -125,5 +223,6 @@ export class SeedService {
       (point) => ({ ...point, merchantId: merchant.id }),
     ) as never;
     await merchant.save();
+    return merchant;
   }
 }
