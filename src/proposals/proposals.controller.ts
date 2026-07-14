@@ -27,6 +27,11 @@ export class ProposalsController {
     return this.proposals.pendingForMerchant(user.id);
   }
 
+  @Get('proposals/:id')
+  getById(@Param('id') id: string) {
+    return this.proposals.getByIdOrFail(id);
+  }
+
   @Post('proposals/:garmentId/accept')
   @Roles('merchant')
   accept(@CurrentUser() user: SessionUser, @Param('garmentId') garmentId: string) {

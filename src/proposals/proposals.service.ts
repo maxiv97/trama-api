@@ -50,6 +50,14 @@ export class ProposalsService {
     return this.proposalModel.findOne({ garmentId }).exec();
   }
 
+  async getByIdOrFail(id: string): Promise<ProposalDocument> {
+    const proposal = await this.proposalModel.findById(id).exec();
+    if (!proposal) {
+      throw new NotFoundException(`Propuesta no encontrada: ${id}`);
+    }
+    return proposal;
+  }
+
   async pendingForMerchant(merchantId: string): Promise<ProposalDocument[]> {
     const garments = await this.garments.byMerchant(merchantId);
     const garmentIds = garments.map((garment) => garment.id);
