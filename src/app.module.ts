@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { GarmentsModule } from './garments/garments.module';
+import { PayoutsModule } from './payouts/payouts.module';
 import { ProposalsModule } from './proposals/proposals.module';
 import { ReceptionsModule } from './receptions/receptions.module';
 import { SalesModule } from './sales/sales.module';
@@ -31,6 +32,7 @@ import { UsersModule } from './users/users.module';
     ProposalsModule,
     ReceptionsModule,
     SalesModule,
+    PayoutsModule,
     SeedModule,
   ],
   controllers: [AppController],
