@@ -9,10 +9,16 @@ import { Model } from 'mongoose';
 import { AgreementsService } from '../agreements/agreements.service';
 import { SessionUser } from '../auth/session-user';
 import { GarmentsService } from '../garments/garments.service';
+import { PaymentMethod } from '../shared/domain/enums';
 import { canTransition } from '../shared/state-machine/garment.state-machine';
 import { calculateConsignorAmount } from '../shared/utils/price.util';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { Sale, SaleDocument } from './schemas/sale.schema';
+
+interface Payment {
+  paymentMethod: PaymentMethod;
+  receiptNumber?: string;
+}
 
 @Injectable()
 export class SalesService {
@@ -53,9 +59,24 @@ export class SalesService {
     return this.saleModel.findOne({ garmentId }).exec();
   }
 
+  byGarmentIds(garmentIds: string[]): Promise<SaleDocument[]> {
+    return this.saleModel.find({ garmentId: { $in: garmentIds } }).exec();
+  }
+
   async byMerchant(merchantId: string): Promise<SaleDocument[]> {
     const garments = await this.garments.byMerchant(merchantId);
-    const garmentIds = garments.map((garment) => garment.id);
-    return this.saleModel.find({ garmentId: { $in: garmentIds } }).exec();
+    return this.byGarmentIds(garments.map((garment) => garment.id));
+  }
+
+  async markPaid(garmentId: string, payment: Payment): Promise<SaleDocument> {
+    const sale = await this.saleModel.findOne({ garmentId }).exec();
+    if (!sale) {
+      throw new NotFoundException(`Venta no encontrada para la prenda: ${garmentId}`);
+    }
+    sale.paidAt = new Date();
+    sale.paymentMethod = payment.paymentMethod;
+    sale.receiptNumber = payment.receiptNumber;
+    await sale.save();
+    return sale;
   }
 }
