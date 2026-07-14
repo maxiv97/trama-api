@@ -8,7 +8,9 @@ import { AgreementsModule } from './agreements/agreements.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
+import { ConsignorsModule } from './consignors/consignors.module';
 import { GarmentsModule } from './garments/garments.module';
+import { MerchantsModule } from './merchants/merchants.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PayoutsModule } from './payouts/payouts.module';
 import { ProposalsModule } from './proposals/proposals.module';
@@ -35,6 +37,8 @@ import { UsersModule } from './users/users.module';
     ReceptionsModule,
     SalesModule,
     SalesPointsModule,
+    MerchantsModule,
+    ConsignorsModule,
     PayoutsModule,
     NotificationsModule,
     SeedModule,
