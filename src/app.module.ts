@@ -14,6 +14,7 @@ import { PayoutsModule } from './payouts/payouts.module';
 import { ProposalsModule } from './proposals/proposals.module';
 import { ReceptionsModule } from './receptions/receptions.module';
 import { SalesModule } from './sales/sales.module';
+import { SalesPointsModule } from './sales-points/sales-points.module';
 import { SeedModule } from './seed/seed.module';
 import { UsersModule } from './users/users.module';
 
@@ -33,6 +34,7 @@ import { UsersModule } from './users/users.module';
     ProposalsModule,
     ReceptionsModule,
     SalesModule,
+    SalesPointsModule,
     PayoutsModule,
     NotificationsModule,
     SeedModule,
