@@ -36,18 +36,31 @@ describe('garment state machine', () => {
     expect(transition('rejected', 'REDELIVER')).toBe('agreed');
   });
 
+  it('permite al cedente cancelar antes de entregar', () => {
+    expect(transition('under_review', 'CANCEL')).toBe('cancelled');
+    expect(transition('counteroffer', 'CANCEL')).toBe('cancelled');
+    expect(transition('agreed', 'CANCEL')).toBe('cancelled');
+  });
+
+  it('no permite cancelar una vez entregada', () => {
+    expect(() => transition('in_stock', 'CANCEL')).toThrow();
+    expect(() => transition('with_remarks', 'CANCEL')).toThrow();
+    expect(() => transition('sold', 'CANCEL')).toThrow();
+  });
+
   it('lanza en transiciones inválidas', () => {
     expect(() => transition('paid_out', 'REGISTER_SALE')).toThrow();
     expect(() => transition('submitted', 'REGISTER_SALE')).toThrow();
     expect(() => transition('sold', 'REJECT')).toThrow();
+    expect(() => transition('cancelled', 'REDELIVER')).toThrow();
   });
 
   it('reporta las acciones disponibles por estado', () => {
     expect(availableActions('under_review').sort()).toEqual(
-      (['ACCEPT_PROPOSAL', 'COUNTER_OFFER', 'REJECT'] as GarmentAction[]).sort(),
+      (['ACCEPT_PROPOSAL', 'COUNTER_OFFER', 'REJECT', 'CANCEL'] as GarmentAction[]).sort(),
     );
     expect(availableActions('paid_out')).toEqual([]);
-    expect(availableActions('no_agreement')).toEqual([]);
+    expect(availableActions('cancelled')).toEqual([]);
   });
 
   it('canTransition coincide con transition', () => {

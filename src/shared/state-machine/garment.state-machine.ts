@@ -11,7 +11,8 @@ export type GarmentAction =
   | 'REJECT_RECEPTION'
   | 'REGISTER_SALE'
   | 'MARK_PAID_OUT'
-  | 'REDELIVER';
+  | 'REDELIVER'
+  | 'CANCEL';
 
 const TRANSITIONS: Record<GarmentStatus, Partial<Record<GarmentAction, GarmentStatus>>> = {
   submitted: { SUBMIT_PROPOSAL: 'under_review' },
@@ -19,12 +20,14 @@ const TRANSITIONS: Record<GarmentStatus, Partial<Record<GarmentAction, GarmentSt
     ACCEPT_PROPOSAL: 'agreed',
     COUNTER_OFFER: 'counteroffer',
     REJECT: 'no_agreement',
+    CANCEL: 'cancelled',
   },
-  counteroffer: { ACCEPT_COUNTEROFFER: 'agreed', REJECT: 'no_agreement' },
+  counteroffer: { ACCEPT_COUNTEROFFER: 'agreed', REJECT: 'no_agreement', CANCEL: 'cancelled' },
   agreed: {
     RECEIVE_AS_AGREED: 'in_stock',
     RECEIVE_WITH_REMARKS: 'with_remarks',
     REJECT_RECEPTION: 'rejected',
+    CANCEL: 'cancelled',
   },
   in_stock: { REGISTER_SALE: 'sold' },
   with_remarks: { REGISTER_SALE: 'sold' },
@@ -32,6 +35,7 @@ const TRANSITIONS: Record<GarmentStatus, Partial<Record<GarmentAction, GarmentSt
   sold: { MARK_PAID_OUT: 'paid_out' },
   paid_out: {},
   no_agreement: {},
+  cancelled: {},
 };
 
 export function canTransition(status: GarmentStatus, action: GarmentAction): boolean {

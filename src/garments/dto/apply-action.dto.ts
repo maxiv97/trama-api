@@ -13,6 +13,7 @@ const ACTIONS: GarmentAction[] = [
   'REGISTER_SALE',
   'MARK_PAID_OUT',
   'REDELIVER',
+  'CANCEL',
 ];
 
 export class ApplyActionDto {

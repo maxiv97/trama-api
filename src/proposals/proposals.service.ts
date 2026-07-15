@@ -60,10 +60,10 @@ export class ProposalsService {
 
   async pendingForMerchant(merchantId: string): Promise<ProposalDocument[]> {
     const garments = await this.garments.byMerchant(merchantId);
-    const garmentIds = garments.map((garment) => garment.id);
-    return this.proposalModel
-      .find({ garmentId: { $in: garmentIds }, status: 'under_review' })
-      .exec();
+    const garmentIds = garments
+      .filter((garment) => garment.status === 'under_review')
+      .map((garment) => garment.id);
+    return this.proposalModel.find({ garmentId: { $in: garmentIds } }).exec();
   }
 
   async accept(garmentId: string, merchantId: string): Promise<ProposalDocument> {

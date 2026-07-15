@@ -49,6 +49,10 @@ const ACTION_NOTIFICATION: Partial<Record<GarmentAction, NotificationTemplate>> 
     type: 'payout',
     text: (garment) => `Liquidamos el pago de "${garment.name}".`,
   },
+  CANCEL: {
+    type: 'proposal',
+    text: (garment) => `El cedente canceló "${garment.name}".`,
+  },
 };
 
 @Injectable()
