@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, Post } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { SessionUser } from '../auth/session-user';
@@ -29,11 +29,19 @@ export class GarmentsController {
   }
 
   @Post(':id/actions')
-  applyAction(
+  async applyAction(
     @CurrentUser() user: SessionUser,
     @Param('id') id: string,
     @Body() dto: ApplyActionDto,
   ) {
+    const garment = await this.garments.getByIdOrFail(id);
+    const ownerId = user.role === 'merchant' ? garment.merchantId : garment.consignorId;
+    if (ownerId !== user.id) {
+      throw new ForbiddenException('La prenda no te pertenece');
+    }
+    if (dto.action === 'CANCEL' && user.role !== 'consignor') {
+      throw new ForbiddenException('Solo el cedente puede cancelar la prenda');
+    }
     return this.garments.applyAction(id, dto.action, user.role, dto.note);
   }
 }

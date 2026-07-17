@@ -8,7 +8,8 @@ export type GarmentStatus =
   | 'rejected'
   | 'sold'
   | 'paid_out'
-  | 'no_agreement';
+  | 'no_agreement'
+  | 'cancelled';
 
 export type GarmentCondition = 'new' | 'very_good' | 'good' | 'fair';
 
