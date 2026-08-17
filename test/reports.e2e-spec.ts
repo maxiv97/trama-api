@@ -1,0 +1,93 @@
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { MongoMemoryServer } from 'mongodb-memory-server';
+import request from 'supertest';
+import { App } from 'supertest/types';
+import { AppModule } from './../src/app.module';
+import { SeedService } from './../src/seed/seed.service';
+
+interface ExpiringItem {
+  garmentId: string;
+  name: string;
+  consignorName: string;
+  daysLeft: number;
+  overdue: boolean;
+  saleDeadline: string;
+  effectiveDeadline: string;
+}
+
+describe('Reports (e2e)', () => {
+  let app: INestApplication<App>;
+  let mongo: MongoMemoryServer;
+  let consignorToken: string;
+  let merchantToken: string;
+
+  const login = (email: string) =>
+    request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email, password: 'trama1234' });
+
+  const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+  beforeAll(async () => {
+    mongo = await MongoMemoryServer.create();
+    process.env.MONGODB_URI = mongo.getUri();
+
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api');
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    await app.init();
+
+    await app.get(SeedService).seedAll();
+
+    consignorToken = (await login('ana@example.com')).body.token;
+    merchantToken = (await login('contacto@tramaboutique.com')).body.token;
+  }, 120000);
+
+  afterAll(async () => {
+    await app.close();
+    await mongo.stop();
+  });
+
+  it('lists in-stock consignments whose deadline falls within the window', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/reports/expiring?withinDays=3650')
+      .set(auth(merchantToken))
+      .expect(200);
+
+    const items = res.body as ExpiringItem[];
+    // The only seeded in-stock garment with an agreement is "Campera de jean" (gar-2).
+    expect(items).toHaveLength(1);
+    const item = items[0];
+    expect(item.name).toBe('Campera de jean');
+    expect(item.consignorName).toBe('Ana Gómez');
+    expect(item.saleDeadline).toEqual(expect.any(String));
+    expect(item.effectiveDeadline).toEqual(expect.any(String));
+    expect(typeof item.daysLeft).toBe('number');
+    expect(typeof item.overdue).toBe('boolean');
+    // The effective deadline is the sale deadline plus the merchant grace period.
+    expect(new Date(item.effectiveDeadline).getTime()).toBeGreaterThan(
+      new Date(item.saleDeadline).getTime(),
+    );
+  });
+
+  it('excludes consignments outside the window', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/reports/expiring?withinDays=1')
+      .set(auth(merchantToken))
+      .expect(200);
+    // The seeded in-stock garment expires well beyond one day from now.
+    expect(res.body).toHaveLength(0);
+  });
+
+  it('forbids a consignor from the merchant report', () => {
+    return request(app.getHttpServer())
+      .get('/api/reports/expiring')
+      .set(auth(consignorToken))
+      .expect(403);
+  });
+});
