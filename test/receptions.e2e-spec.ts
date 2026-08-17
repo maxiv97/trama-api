@@ -24,7 +24,7 @@ describe('Receptions (e2e)', () => {
       .set('Authorization', `Bearer ${consignorToken}`)
       .send({
         name: 'Campera de jean',
-        category: 'Abrigos',
+        category: 'Camperas y abrigos',
         brand: 'Levis',
         size: 'M',
         color: 'Azul',

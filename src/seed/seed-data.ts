@@ -91,7 +91,7 @@ export const SEED_GARMENTS: SeedGarment[] = [
     consignorKey: 'con-ana',
     salesPointKey: 'sp-nc',
     name: 'Campera de jean',
-    category: 'Camperas',
+    category: 'Camperas y abrigos',
     brand: "Levi's",
     size: 'S',
     color: 'Azul',
