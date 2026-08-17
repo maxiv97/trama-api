@@ -20,7 +20,7 @@ describe('Garments (e2e)', () => {
 
   const garmentPayload = () => ({
     name: 'Campera de jean',
-    category: 'Abrigos',
+    category: 'Camperas y abrigos',
     brand: 'Levis',
     size: 'M',
     color: 'Azul',
@@ -70,6 +70,14 @@ describe('Garments (e2e)', () => {
     expect(res.body.status).toBe('under_review');
     expect(res.body.consignorId).toEqual(expect.any(String));
     expect(res.body.timeline).toHaveLength(2);
+  });
+
+  it('rejects a garment with a category outside the canonical list', () => {
+    return request(app.getHttpServer())
+      .post('/api/garments')
+      .set('Authorization', `Bearer ${consignorToken}`)
+      .send({ ...garmentPayload(), category: 'Abrigos' })
+      .expect(400);
   });
 
   it('lists the consignor own garments', async () => {
