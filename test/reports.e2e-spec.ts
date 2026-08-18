@@ -90,4 +90,40 @@ describe('Reports (e2e)', () => {
       .set(auth(consignorToken))
       .expect(403);
   });
+
+  it('aggregates sales and stock by category, ranked by profit', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/reports/by-category')
+      .set(auth(merchantToken))
+      .expect(200);
+
+    const rows = res.body as {
+      category: string;
+      soldCount: number;
+      soldRevenue: number;
+      merchantProfit: number;
+      inStockCount: number;
+    }[];
+
+    // Seed: 4 sales across Accesorios/Pantalones/Calzado/Camperas y abrigos + 1 in-stock (Camperas).
+    expect(rows).toHaveLength(4);
+    expect(rows[0].category).toBe('Accesorios');
+    expect(rows[0].merchantProfit).toBe(14000);
+    expect(rows[0].soldRevenue).toBe(20000);
+    expect(rows[0].soldCount).toBe(1);
+
+    // Ranked by profit descending.
+    const profits = rows.map((r) => r.merchantProfit);
+    expect(profits).toEqual([...profits].sort((a, b) => b - a));
+
+    const camperas = rows.find((r) => r.category === 'Camperas y abrigos');
+    expect(camperas?.inStockCount).toBe(1);
+  });
+
+  it('forbids a consignor from the by-category report', () => {
+    return request(app.getHttpServer())
+      .get('/api/reports/by-category')
+      .set(auth(consignorToken))
+      .expect(403);
+  });
 });
