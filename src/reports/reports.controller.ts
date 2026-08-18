@@ -20,4 +20,10 @@ export class ReportsController {
   byCategory(@CurrentUser() user: SessionUser) {
     return this.reports.salesByCategory(user.id);
   }
+
+  @Get('consignors')
+  @Roles('merchant')
+  consignors(@CurrentUser() user: SessionUser) {
+    return this.reports.consignorPerformance(user.id);
+  }
 }
