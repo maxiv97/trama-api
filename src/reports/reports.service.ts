@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { AgreementsService } from '../agreements/agreements.service';
 import { GarmentsService } from '../garments/garments.service';
+import { SalesService } from '../sales/sales.service';
 import { UsersService } from '../users/users.service';
+import { CategorySales } from './category-sales';
 import { ExpiringConsignment } from './expiring-consignment';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -11,8 +13,41 @@ export class ReportsService {
   constructor(
     private readonly garments: GarmentsService,
     private readonly agreements: AgreementsService,
+    private readonly sales: SalesService,
     private readonly users: UsersService,
   ) {}
+
+  async salesByCategory(merchantId: string): Promise<CategorySales[]> {
+    const garments = await this.garments.byMerchant(merchantId);
+    const garmentById = new Map(garments.map((garment) => [garment.id, garment]));
+    const sales = await this.sales.byGarmentIds([...garmentById.keys()]);
+
+    const byCategory = new Map<string, CategorySales>();
+    const bucket = (category: string): CategorySales => {
+      let entry = byCategory.get(category);
+      if (!entry) {
+        entry = { category, soldCount: 0, soldRevenue: 0, merchantProfit: 0, inStockCount: 0 };
+        byCategory.set(category, entry);
+      }
+      return entry;
+    };
+
+    for (const garment of garments) {
+      if (garment.status === 'in_stock' || garment.status === 'with_remarks') {
+        bucket(garment.category).inStockCount += 1;
+      }
+    }
+    for (const sale of sales) {
+      const garment = garmentById.get(sale.garmentId);
+      if (!garment) continue;
+      const entry = bucket(garment.category);
+      entry.soldCount += 1;
+      entry.soldRevenue += sale.actualSalePrice;
+      entry.merchantProfit += sale.merchantCommission;
+    }
+
+    return [...byCategory.values()].sort((a, b) => b.merchantProfit - a.merchantProfit);
+  }
 
   async expiringConsignments(
     merchantId: string,

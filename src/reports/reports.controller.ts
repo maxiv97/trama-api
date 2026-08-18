@@ -14,4 +14,10 @@ export class ReportsController {
     const days = Number(withinDays);
     return this.reports.expiringConsignments(user.id, Number.isFinite(days) && days > 0 ? days : 30);
   }
+
+  @Get('by-category')
+  @Roles('merchant')
+  byCategory(@CurrentUser() user: SessionUser) {
+    return this.reports.salesByCategory(user.id);
+  }
 }
