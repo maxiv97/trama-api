@@ -76,4 +76,19 @@ describe('Auth (e2e)', () => {
   it('keeps the health check public', () => {
     return request(app.getHttpServer()).get('/api/health').expect(200);
   });
+
+  it('rejects a token whose user no longer exists with 401', async () => {
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: 'ana@example.com', password: 'trama1234' });
+    const staleToken = login.body.token;
+
+    // Re-seeding regenerates user ids, leaving the just-issued token pointing at a deleted user.
+    await app.get(SeedService).seedUsers();
+
+    await request(app.getHttpServer())
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${staleToken}`)
+      .expect(401);
+  });
 });
