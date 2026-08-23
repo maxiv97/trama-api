@@ -2,12 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { AgreementsService } from '../agreements/agreements.service';
 import { ConsignorsService } from '../consignors/consignors.service';
 import { GarmentsService } from '../garments/garments.service';
-import { GarmentStatus } from '../shared/domain/enums';
+import { ReceptionsService } from '../receptions/receptions.service';
+import { GarmentStatus, ReceptionDiscrepancy } from '../shared/domain/enums';
 import { SalesService } from '../sales/sales.service';
 import { UsersService } from '../users/users.service';
 import { CategorySales } from './category-sales';
 import { ConsignorPerformance } from './consignor-performance';
 import { ExpiringConsignment } from './expiring-consignment';
+import { ReceptionDiscrepancyReport } from './reception-discrepancies';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -26,9 +28,34 @@ export class ReportsService {
     private readonly garments: GarmentsService,
     private readonly agreements: AgreementsService,
     private readonly sales: SalesService,
+    private readonly receptions: ReceptionsService,
     private readonly consignors: ConsignorsService,
     private readonly users: UsersService,
   ) {}
+
+  async receptionDiscrepancies(merchantId: string): Promise<ReceptionDiscrepancyReport> {
+    const garments = await this.garments.byMerchant(merchantId);
+    const receptions = await this.receptions.byGarmentIds(garments.map((g) => g.id));
+
+    const counts = new Map<ReceptionDiscrepancy, number>();
+    let withDiscrepancies = 0;
+    for (const reception of receptions) {
+      if (reception.discrepancies.length > 0) withDiscrepancies += 1;
+      for (const discrepancy of reception.discrepancies) {
+        counts.set(discrepancy, (counts.get(discrepancy) ?? 0) + 1);
+      }
+    }
+    const byType = [...counts.entries()]
+      .map(([discrepancy, count]) => ({ discrepancy, count }))
+      .sort((a, b) => b.count - a.count);
+
+    return {
+      totalReceptions: receptions.length,
+      withDiscrepancies,
+      rate: receptions.length ? Math.round((withDiscrepancies / receptions.length) * 100) : null,
+      byType,
+    };
+  }
 
   async consignorPerformance(merchantId: string): Promise<ConsignorPerformance[]> {
     const consignors = await this.consignors.byMerchant(merchantId);

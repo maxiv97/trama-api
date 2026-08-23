@@ -1,0 +1,101 @@
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { MongoMemoryServer } from 'mongodb-memory-server';
+import request from 'supertest';
+import { App } from 'supertest/types';
+import { AppModule } from './../src/app.module';
+import { SeedService } from './../src/seed/seed.service';
+
+describe('Reception discrepancies report (e2e)', () => {
+  let app: INestApplication<App>;
+  let mongo: MongoMemoryServer;
+  let consignorToken: string;
+  let merchantToken: string;
+  let merchantId: string;
+
+  const login = (email: string) =>
+    request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email, password: 'trama1234' });
+
+  const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+  const received = async (result: string, discrepancies: string[]): Promise<void> => {
+    const created = await request(app.getHttpServer())
+      .post('/api/garments')
+      .set(auth(consignorToken))
+      .send({
+        name: 'Campera de jean',
+        category: 'Camperas y abrigos',
+        brand: 'Levis',
+        size: 'M',
+        color: 'Azul',
+        season: 'Invierno',
+        condition: 'very_good',
+        description: 'Poco uso',
+        photos: ['data:image/png;base64,AAAA'],
+        merchantId,
+      });
+    const garmentId = created.body.id;
+    await request(app.getHttpServer())
+      .post('/api/proposals')
+      .set(auth(consignorToken))
+      .send({ garmentId, requestedConsignorPrice: 7000 });
+    await request(app.getHttpServer())
+      .post(`/api/proposals/${garmentId}/accept`)
+      .set(auth(merchantToken));
+    await request(app.getHttpServer())
+      .post('/api/receptions')
+      .set(auth(merchantToken))
+      .send({ garmentId, salesPointId: 'sp-nc', result, discrepancies, evidence: [] });
+  };
+
+  beforeAll(async () => {
+    mongo = await MongoMemoryServer.create();
+    process.env.MONGODB_URI = mongo.getUri();
+
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api');
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    await app.init();
+
+    await app.get(SeedService).seedUsers();
+
+    consignorToken = (await login('ana@example.com')).body.token;
+    const merchant = await login('contacto@tramaboutique.com');
+    merchantToken = merchant.body.token;
+    merchantId = merchant.body.user.id;
+
+    await received('accepted', []);
+    await received('with_remarks', ['condition', 'damage']);
+  }, 120000);
+
+  afterAll(async () => {
+    await app.close();
+    await mongo.stop();
+  });
+
+  it('aggregates the discrepancy rate and types across receptions', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/reports/discrepancies')
+      .set(auth(merchantToken))
+      .expect(200);
+
+    expect(res.body.totalReceptions).toBe(2);
+    expect(res.body.withDiscrepancies).toBe(1);
+    expect(res.body.rate).toBe(50);
+    const types = (res.body.byType as { discrepancy: string; count: number }[]).map((t) => t.discrepancy);
+    expect(types).toEqual(expect.arrayContaining(['condition', 'damage']));
+  });
+
+  it('forbids a consignor from the discrepancies report', () => {
+    return request(app.getHttpServer())
+      .get('/api/reports/discrepancies')
+      .set(auth(consignorToken))
+      .expect(403);
+  });
+});

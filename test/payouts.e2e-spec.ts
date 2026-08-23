@@ -18,6 +18,10 @@ describe('Payouts (e2e)', () => {
       .post('/api/auth/login')
       .send({ email, password: 'trama1234' });
 
+  const now = new Date();
+  const soldAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-15`;
+  const soldMonth = soldAt.slice(0, 7);
+
   const soldGarment = async (): Promise<string> => {
     const created = await request(app.getHttpServer())
       .post('/api/garments')
@@ -49,7 +53,7 @@ describe('Payouts (e2e)', () => {
     await request(app.getHttpServer())
       .post('/api/sales')
       .set('Authorization', `Bearer ${merchantToken}`)
-      .send({ garmentId, actualSalePrice: 23333, soldAt: '2026-07-15' });
+      .send({ garmentId, actualSalePrice: 23333, soldAt });
     return garmentId;
   };
 
@@ -93,7 +97,7 @@ describe('Payouts (e2e)', () => {
       .set('Authorization', `Bearer ${merchantToken}`)
       .expect(200);
 
-    const group = res.body.find((g: { month: string }) => g.month === '2026-07');
+    const group = res.body.find((g: { month: string }) => g.month === soldMonth);
     expect(group).toBeDefined();
     expect(group.counterpartName).toBe('Ana Gómez');
     expect(group.counterpartDni).toBe('32.111.222');

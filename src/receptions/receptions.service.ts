@@ -55,4 +55,8 @@ export class ReceptionsService {
   byGarment(garmentId: string): Promise<ReceptionDocument | null> {
     return this.receptionModel.findOne({ garmentId }).exec();
   }
+
+  byGarmentIds(garmentIds: string[]): Promise<ReceptionDocument[]> {
+    return this.receptionModel.find({ garmentId: { $in: garmentIds } }).exec();
+  }
 }

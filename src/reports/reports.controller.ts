@@ -26,4 +26,10 @@ export class ReportsController {
   consignors(@CurrentUser() user: SessionUser) {
     return this.reports.consignorPerformance(user.id);
   }
+
+  @Get('discrepancies')
+  @Roles('merchant')
+  discrepancies(@CurrentUser() user: SessionUser) {
+    return this.reports.receptionDiscrepancies(user.id);
+  }
 }
