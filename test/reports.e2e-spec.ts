@@ -190,4 +190,25 @@ describe('Reports (e2e)', () => {
       .set(auth(consignorToken))
       .expect(403);
   });
+
+  it('reports stock aging buckets and average days to sale', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/reports/rotation')
+      .set(auth(merchantToken))
+      .expect(200);
+
+    const aging = res.body.stockAging as { bucket: string; count: number }[];
+    expect(aging).toHaveLength(7);
+    // Only one seeded garment is in stock (Campera de jean / gar-2).
+    expect(aging.reduce((sum, b) => sum + b.count, 0)).toBe(1);
+    // 4 seeded sales with fixed dates → (74+32+32+25)/4 = 40.75 ≈ 41 (date-stable).
+    expect(res.body.avgDaysToSale).toBe(41);
+  });
+
+  it('forbids a consignor from the rotation report', () => {
+    return request(app.getHttpServer())
+      .get('/api/reports/rotation')
+      .set(auth(consignorToken))
+      .expect(403);
+  });
 });

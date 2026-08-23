@@ -38,4 +38,10 @@ export class ReportsController {
   byPoint(@CurrentUser() user: SessionUser) {
     return this.reports.salesByPoint(user.id);
   }
+
+  @Get('rotation')
+  @Roles('merchant')
+  rotation(@CurrentUser() user: SessionUser) {
+    return this.reports.rotation(user.id);
+  }
 }
