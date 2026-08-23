@@ -24,6 +24,9 @@ const ACCEPTED_STATUSES: GarmentStatus[] = [
   'paid_out',
 ];
 
+// Physically taken into the shop (whether still in stock or already sold); the base for conversion.
+const RECEIVED_STATUSES: GarmentStatus[] = ['in_stock', 'with_remarks', 'sold', 'paid_out'];
+
 @Injectable()
 export class ReportsService {
   constructor(
@@ -191,10 +194,22 @@ export class ReportsService {
     const sales = await this.sales.byGarmentIds([...garmentById.keys()]);
 
     const byCategory = new Map<string, CategorySales>();
+    // Received count (conversion base) and total days-to-sale, kept aside so the running
+    // averages don't leak into the returned rows until we resolve them at the end.
+    const receivedByCategory = new Map<string, number>();
+    const daysToSaleByCategory = new Map<string, number>();
     const bucket = (category: string): CategorySales => {
       let entry = byCategory.get(category);
       if (!entry) {
-        entry = { category, soldCount: 0, soldRevenue: 0, merchantProfit: 0, inStockCount: 0 };
+        entry = {
+          category,
+          soldCount: 0,
+          soldRevenue: 0,
+          merchantProfit: 0,
+          inStockCount: 0,
+          conversion: null,
+          avgDaysToSale: null,
+        };
         byCategory.set(category, entry);
       }
       return entry;
@@ -204,6 +219,13 @@ export class ReportsService {
       if (garment.status === 'in_stock' || garment.status === 'with_remarks') {
         bucket(garment.category).inStockCount += 1;
       }
+      if (RECEIVED_STATUSES.includes(garment.status)) {
+        bucket(garment.category); // ensure a row exists even if the category has no sales yet
+        receivedByCategory.set(
+          garment.category,
+          (receivedByCategory.get(garment.category) ?? 0) + 1,
+        );
+      }
     }
     for (const sale of sales) {
       const garment = garmentById.get(sale.garmentId);
@@ -212,6 +234,19 @@ export class ReportsService {
       entry.soldCount += 1;
       entry.soldRevenue += sale.actualSalePrice;
       entry.merchantProfit += sale.merchantCommission;
+      daysToSaleByCategory.set(
+        garment.category,
+        (daysToSaleByCategory.get(garment.category) ?? 0) +
+          (sale.soldAt.getTime() - garment.createdAt.getTime()) / DAY_MS,
+      );
+    }
+
+    for (const entry of byCategory.values()) {
+      const received = receivedByCategory.get(entry.category) ?? 0;
+      entry.conversion = received ? Math.round((entry.soldCount / received) * 100) : null;
+      entry.avgDaysToSale = entry.soldCount
+        ? Math.round((daysToSaleByCategory.get(entry.category) ?? 0) / entry.soldCount)
+        : null;
     }
 
     return [...byCategory.values()].sort((a, b) => b.merchantProfit - a.merchantProfit);
