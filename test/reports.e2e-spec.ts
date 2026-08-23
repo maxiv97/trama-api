@@ -145,6 +145,8 @@ describe('Reports (e2e)', () => {
       name: string;
       acceptanceRate: number | null;
       inStockCount: number;
+      receivedCount: number;
+      sellThroughRate: number | null;
       liquidatedAmount: number;
       pendingAmount: number;
       merchantProfit: number;
@@ -156,12 +158,18 @@ describe('Reports (e2e)', () => {
     const ana = rows.find((r) => r.name === 'Ana Gómez')!;
     expect(ana.acceptanceRate).toBe(100);
     expect(ana.inStockCount).toBe(1);
+    // Ana received gar-2 (in stock), gar-7 (paid out), gar-9 (sold); 2 of those 3 sold.
+    expect(ana.receivedCount).toBe(3);
+    expect(ana.sellThroughRate).toBe(67);
     expect(ana.liquidatedAmount).toBe(6000);
     expect(ana.pendingAmount).toBe(5000);
     expect(ana.merchantProfit).toBe(25000); // gar-7 (14000) + gar-9 (11000)
     expect(ana.avgPayoutDays).toBe(39); // gar-7: soldAt 2026-05-10 → paidAt 2026-06-18
 
     const luis = rows.find((r) => r.name === 'Luis Ríos')!;
+    // Luis received gar-3 and gar-8, both sold → 100% sell-through.
+    expect(luis.receivedCount).toBe(2);
+    expect(luis.sellThroughRate).toBe(100);
     expect(luis.pendingAmount).toBe(8000);
     expect(luis.merchantProfit).toBe(19000); // gar-3 (10500) + gar-8 (8500)
     expect(luis.avgPayoutDays).toBeNull(); // no paid sales yet
