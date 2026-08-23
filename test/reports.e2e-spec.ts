@@ -126,4 +126,40 @@ describe('Reports (e2e)', () => {
       .set(auth(consignorToken))
       .expect(403);
   });
+
+  it('reports per-consignor acceptance and payout metrics', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/reports/consignors')
+      .set(auth(merchantToken))
+      .expect(200);
+
+    const rows = res.body as {
+      name: string;
+      acceptanceRate: number | null;
+      inStockCount: number;
+      liquidatedAmount: number;
+      pendingAmount: number;
+      avgPayoutDays: number | null;
+    }[];
+
+    expect(rows).toHaveLength(2);
+
+    const ana = rows.find((r) => r.name === 'Ana Gómez')!;
+    expect(ana.acceptanceRate).toBe(100);
+    expect(ana.inStockCount).toBe(1);
+    expect(ana.liquidatedAmount).toBe(6000);
+    expect(ana.pendingAmount).toBe(5000);
+    expect(ana.avgPayoutDays).toBe(39); // gar-7: soldAt 2026-05-10 → paidAt 2026-06-18
+
+    const luis = rows.find((r) => r.name === 'Luis Ríos')!;
+    expect(luis.pendingAmount).toBe(8000);
+    expect(luis.avgPayoutDays).toBeNull(); // no paid sales yet
+  });
+
+  it('forbids a consignor from the consignors report', () => {
+    return request(app.getHttpServer())
+      .get('/api/reports/consignors')
+      .set(auth(consignorToken))
+      .expect(403);
+  });
 });

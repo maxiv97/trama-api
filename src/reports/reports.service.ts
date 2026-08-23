@@ -1,12 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { AgreementsService } from '../agreements/agreements.service';
+import { ConsignorsService } from '../consignors/consignors.service';
 import { GarmentsService } from '../garments/garments.service';
+import { GarmentStatus } from '../shared/domain/enums';
 import { SalesService } from '../sales/sales.service';
 import { UsersService } from '../users/users.service';
 import { CategorySales } from './category-sales';
+import { ConsignorPerformance } from './consignor-performance';
 import { ExpiringConsignment } from './expiring-consignment';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+const ACCEPTED_STATUSES: GarmentStatus[] = [
+  'agreed',
+  'in_stock',
+  'with_remarks',
+  'rejected',
+  'sold',
+  'paid_out',
+];
 
 @Injectable()
 export class ReportsService {
@@ -14,8 +26,70 @@ export class ReportsService {
     private readonly garments: GarmentsService,
     private readonly agreements: AgreementsService,
     private readonly sales: SalesService,
+    private readonly consignors: ConsignorsService,
     private readonly users: UsersService,
   ) {}
+
+  async consignorPerformance(merchantId: string): Promise<ConsignorPerformance[]> {
+    const consignors = await this.consignors.byMerchant(merchantId);
+    const garments = await this.garments.byMerchant(merchantId);
+    const sales = await this.sales.byGarmentIds(garments.map((garment) => garment.id));
+    const saleByGarment = new Map(sales.map((sale) => [sale.garmentId, sale]));
+
+    const garmentsByConsignor = new Map<string, typeof garments>();
+    for (const garment of garments) {
+      const list = garmentsByConsignor.get(garment.consignorId) ?? [];
+      list.push(garment);
+      garmentsByConsignor.set(garment.consignorId, list);
+    }
+
+    const rows = consignors.map((consignor): ConsignorPerformance => {
+      const owned = garmentsByConsignor.get(consignor.id) ?? [];
+      const accepted = owned.filter((g) => ACCEPTED_STATUSES.includes(g.status)).length;
+      const notAccepted = owned.filter((g) => g.status === 'no_agreement').length;
+      const decided = accepted + notAccepted;
+      const inStockCount = owned.filter(
+        (g) => g.status === 'in_stock' || g.status === 'with_remarks',
+      ).length;
+
+      let liquidatedAmount = 0;
+      let pendingAmount = 0;
+      let soldCount = 0;
+      let payoutDaysTotal = 0;
+      let paidCount = 0;
+      for (const garment of owned) {
+        const sale = saleByGarment.get(garment.id);
+        if (!sale) continue;
+        soldCount += 1;
+        if (sale.paidAt) {
+          liquidatedAmount += sale.consignorAmount;
+          payoutDaysTotal += (sale.paidAt.getTime() - sale.soldAt.getTime()) / DAY_MS;
+          paidCount += 1;
+        } else {
+          pendingAmount += sale.consignorAmount;
+        }
+      }
+
+      return {
+        consignorId: consignor.id,
+        name: consignor.get('name') as string,
+        dni: consignor.dni,
+        email: consignor.get('email') as string,
+        phone: consignor.get('phone') as string,
+        verified: consignor.get('verified') as boolean,
+        acceptanceRate: decided ? Math.round((accepted / decided) * 100) : null,
+        accepted,
+        decided,
+        inStockCount,
+        soldCount,
+        liquidatedAmount,
+        pendingAmount,
+        avgPayoutDays: paidCount ? Math.round(payoutDaysTotal / paidCount) : null,
+      };
+    });
+
+    return rows.sort((a, b) => a.name.localeCompare(b.name));
+  }
 
   async salesByCategory(merchantId: string): Promise<CategorySales[]> {
     const garments = await this.garments.byMerchant(merchantId);
