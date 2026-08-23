@@ -103,6 +103,8 @@ describe('Reports (e2e)', () => {
       soldRevenue: number;
       merchantProfit: number;
       inStockCount: number;
+      conversion: number | null;
+      avgDaysToSale: number | null;
     }[];
 
     // Seed: 4 sales across Accesorios/Pantalones/Calzado/Camperas y abrigos + 1 in-stock (Camperas).
@@ -111,6 +113,9 @@ describe('Reports (e2e)', () => {
     expect(rows[0].merchantProfit).toBe(14000);
     expect(rows[0].soldRevenue).toBe(20000);
     expect(rows[0].soldCount).toBe(1);
+    // Accesorios: 1 received (gar-7), 1 sold → 100%; sold 32 days after created (2026-04-08 → 2026-05-10).
+    expect(rows[0].conversion).toBe(100);
+    expect(rows[0].avgDaysToSale).toBe(32);
 
     // Ranked by profit descending.
     const profits = rows.map((r) => r.merchantProfit);
@@ -118,6 +123,9 @@ describe('Reports (e2e)', () => {
 
     const camperas = rows.find((r) => r.category === 'Camperas y abrigos');
     expect(camperas?.inStockCount).toBe(1);
+    // Camperas: 2 received (gar-2 in stock, gar-8 sold), 1 sold → 50%; gar-8 sold 32 days after created.
+    expect(camperas?.conversion).toBe(50);
+    expect(camperas?.avgDaysToSale).toBe(32);
   });
 
   it('forbids a consignor from the by-category report', () => {

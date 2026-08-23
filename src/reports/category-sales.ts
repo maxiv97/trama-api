@@ -4,4 +4,6 @@ export interface CategorySales {
   soldRevenue: number;
   merchantProfit: number;
   inStockCount: number;
+  conversion: number | null;
+  avgDaysToSale: number | null;
 }
