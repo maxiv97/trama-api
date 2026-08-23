@@ -12,5 +12,6 @@ export interface ConsignorPerformance {
   soldCount: number;
   liquidatedAmount: number;
   pendingAmount: number;
+  merchantProfit: number;
   avgPayoutDays: number | null;
 }

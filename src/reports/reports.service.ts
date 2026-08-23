@@ -151,6 +151,7 @@ export class ReportsService {
 
       let liquidatedAmount = 0;
       let pendingAmount = 0;
+      let merchantProfit = 0;
       let soldCount = 0;
       let payoutDaysTotal = 0;
       let paidCount = 0;
@@ -158,6 +159,7 @@ export class ReportsService {
         const sale = saleByGarment.get(garment.id);
         if (!sale) continue;
         soldCount += 1;
+        merchantProfit += sale.merchantCommission;
         if (sale.paidAt) {
           liquidatedAmount += sale.consignorAmount;
           payoutDaysTotal += (sale.paidAt.getTime() - sale.soldAt.getTime()) / DAY_MS;
@@ -181,6 +183,7 @@ export class ReportsService {
         soldCount,
         liquidatedAmount,
         pendingAmount,
+        merchantProfit,
         avgPayoutDays: paidCount ? Math.round(payoutDaysTotal / paidCount) : null,
       };
     });
