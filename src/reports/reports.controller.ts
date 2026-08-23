@@ -2,6 +2,7 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { SessionUser } from '../auth/session-user';
+import { ReportFiltersDto, toReportFilters } from './dto/report-filters.dto';
 import { ReportsService } from './reports.service';
 
 @Controller('reports')
@@ -10,21 +11,29 @@ export class ReportsController {
 
   @Get('expiring')
   @Roles('merchant')
-  expiring(@CurrentUser() user: SessionUser, @Query('withinDays') withinDays?: string) {
+  expiring(
+    @CurrentUser() user: SessionUser,
+    @Query() filters: ReportFiltersDto,
+    @Query('withinDays') withinDays?: string,
+  ) {
     const days = Number(withinDays);
-    return this.reports.expiringConsignments(user.id, Number.isFinite(days) && days > 0 ? days : 30);
+    return this.reports.expiringConsignments(
+      user.id,
+      Number.isFinite(days) && days > 0 ? days : 30,
+      toReportFilters(filters),
+    );
   }
 
   @Get('by-category')
   @Roles('merchant')
-  byCategory(@CurrentUser() user: SessionUser) {
-    return this.reports.salesByCategory(user.id);
+  byCategory(@CurrentUser() user: SessionUser, @Query() filters: ReportFiltersDto) {
+    return this.reports.salesByCategory(user.id, toReportFilters(filters));
   }
 
   @Get('consignors')
   @Roles('merchant')
-  consignors(@CurrentUser() user: SessionUser) {
-    return this.reports.consignorPerformance(user.id);
+  consignors(@CurrentUser() user: SessionUser, @Query() filters: ReportFiltersDto) {
+    return this.reports.consignorPerformance(user.id, toReportFilters(filters));
   }
 
   @Get('discrepancies')
@@ -35,13 +44,13 @@ export class ReportsController {
 
   @Get('by-point')
   @Roles('merchant')
-  byPoint(@CurrentUser() user: SessionUser) {
-    return this.reports.salesByPoint(user.id);
+  byPoint(@CurrentUser() user: SessionUser, @Query() filters: ReportFiltersDto) {
+    return this.reports.salesByPoint(user.id, toReportFilters(filters));
   }
 
   @Get('rotation')
   @Roles('merchant')
-  rotation(@CurrentUser() user: SessionUser) {
-    return this.reports.rotation(user.id);
+  rotation(@CurrentUser() user: SessionUser, @Query() filters: ReportFiltersDto) {
+    return this.reports.rotation(user.id, toReportFilters(filters));
   }
 }
