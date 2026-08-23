@@ -32,4 +32,10 @@ export class ReportsController {
   discrepancies(@CurrentUser() user: SessionUser) {
     return this.reports.receptionDiscrepancies(user.id);
   }
+
+  @Get('by-point')
+  @Roles('merchant')
+  byPoint(@CurrentUser() user: SessionUser) {
+    return this.reports.salesByPoint(user.id);
+  }
 }

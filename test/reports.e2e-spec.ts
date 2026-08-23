@@ -162,4 +162,32 @@ describe('Reports (e2e)', () => {
       .set(auth(consignorToken))
       .expect(403);
   });
+
+  it('aggregates sales by point of sale, ranked by profit', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/reports/by-point')
+      .set(auth(merchantToken))
+      .expect(200);
+
+    const rows = res.body as {
+      name: string;
+      soldCount: number;
+      revenue: number;
+      merchantProfit: number;
+    }[];
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0].name).toBe('Trama Nueva Córdoba'); // gar-7 + gar-9
+    expect(rows[0].merchantProfit).toBe(25000);
+    expect(rows[0].soldCount).toBe(2);
+    const cerro = rows.find((r) => r.name === 'Trama Cerro'); // gar-3 + gar-8
+    expect(cerro?.merchantProfit).toBe(19000);
+  });
+
+  it('forbids a consignor from the by-point report', () => {
+    return request(app.getHttpServer())
+      .get('/api/reports/by-point')
+      .set(auth(consignorToken))
+      .expect(403);
+  });
 });

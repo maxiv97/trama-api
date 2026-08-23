@@ -9,6 +9,7 @@ import { UsersService } from '../users/users.service';
 import { CategorySales } from './category-sales';
 import { ConsignorPerformance } from './consignor-performance';
 import { ExpiringConsignment } from './expiring-consignment';
+import { PointSales } from './point-sales';
 import { ReceptionDiscrepancyReport } from './reception-discrepancies';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -55,6 +56,38 @@ export class ReportsService {
       rate: receptions.length ? Math.round((withDiscrepancies / receptions.length) * 100) : null,
       byType,
     };
+  }
+
+  async salesByPoint(merchantId: string): Promise<PointSales[]> {
+    const merchant = await this.users.findMerchantById(merchantId);
+    const nameById = new Map<string, string>();
+    for (const sp of merchant?.salesPoints ?? []) {
+      nameById.set((sp as unknown as { id: string }).id, sp.name);
+    }
+    const garments = await this.garments.byMerchant(merchantId);
+    const pointByGarment = new Map(garments.map((g) => [g.id, g.salesPointId]));
+    const sales = await this.sales.byGarmentIds(garments.map((g) => g.id));
+
+    const byPoint = new Map<string, PointSales>();
+    for (const sale of sales) {
+      const salesPointId = pointByGarment.get(sale.garmentId);
+      if (!salesPointId) continue;
+      let entry = byPoint.get(salesPointId);
+      if (!entry) {
+        entry = {
+          salesPointId,
+          name: nameById.get(salesPointId) ?? '—',
+          soldCount: 0,
+          revenue: 0,
+          merchantProfit: 0,
+        };
+        byPoint.set(salesPointId, entry);
+      }
+      entry.soldCount += 1;
+      entry.revenue += sale.actualSalePrice;
+      entry.merchantProfit += sale.merchantCommission;
+    }
+    return [...byPoint.values()].sort((a, b) => b.merchantProfit - a.merchantProfit);
   }
 
   async consignorPerformance(merchantId: string): Promise<ConsignorPerformance[]> {
