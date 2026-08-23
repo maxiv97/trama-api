@@ -11,6 +11,7 @@ import { ConsignorPerformance } from './consignor-performance';
 import { ExpiringConsignment } from './expiring-consignment';
 import { PointSales } from './point-sales';
 import { ReceptionDiscrepancyReport } from './reception-discrepancies';
+import { RotationReport } from './rotation';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -88,6 +89,39 @@ export class ReportsService {
       entry.merchantProfit += sale.merchantCommission;
     }
     return [...byPoint.values()].sort((a, b) => b.merchantProfit - a.merchantProfit);
+  }
+
+  async rotation(merchantId: string): Promise<RotationReport> {
+    const now = Date.now();
+    const garments = await this.garments.byMerchant(merchantId);
+    const garmentById = new Map(garments.map((g) => [g.id, g]));
+    const sales = await this.sales.byGarmentIds([...garmentById.keys()]);
+
+    const bounds = [15, 30, 45, 60, 90, 120, Infinity];
+    const labels = ['0-15', '16-30', '31-45', '46-60', '61-90', '91-120', '+120'];
+    const stockAging = labels.map((bucket) => ({ bucket, count: 0 }));
+    let staleCount = 0;
+    for (const garment of garments) {
+      if (garment.status !== 'in_stock' && garment.status !== 'with_remarks') continue;
+      const days = Math.floor((now - garment.createdAt.getTime()) / DAY_MS);
+      stockAging[bounds.findIndex((max) => days <= max)].count += 1;
+      if (days > 90) staleCount += 1;
+    }
+
+    let daysTotal = 0;
+    let soldCount = 0;
+    for (const sale of sales) {
+      const garment = garmentById.get(sale.garmentId);
+      if (!garment) continue;
+      daysTotal += (sale.soldAt.getTime() - garment.createdAt.getTime()) / DAY_MS;
+      soldCount += 1;
+    }
+
+    return {
+      stockAging,
+      staleCount,
+      avgDaysToSale: soldCount ? Math.round(daysTotal / soldCount) : null,
+    };
   }
 
   async consignorPerformance(merchantId: string): Promise<ConsignorPerformance[]> {
