@@ -4,6 +4,7 @@ import { GarmentsService } from '../garments/garments.service';
 import { SaleDocument } from '../sales/schemas/sale.schema';
 import { SalesService } from '../sales/sales.service';
 import { Role } from '../shared/domain/enums';
+import { garmentInScope, ReportFilters, saleInRange } from '../shared/report-filters';
 import { monthKey } from '../shared/utils/month.util';
 import { ConsignorSummary, MerchantSummary, UsersService } from '../users/users.service';
 import { SettleDto } from './dto/settle.dto';
@@ -19,12 +20,12 @@ export class PayoutsService {
     private readonly users: UsersService,
   ) {}
 
-  monthly(role: Role, userId: string): Promise<MonthlyPayout[]> {
-    return this.buildMonthly(role, userId);
+  monthly(role: Role, userId: string, filters: ReportFilters = {}): Promise<MonthlyPayout[]> {
+    return this.buildMonthly(role, userId, filters);
   }
 
-  async flat(role: Role, userId: string): Promise<Payout[]> {
-    const groups = await this.buildMonthly(role, userId);
+  async flat(role: Role, userId: string, filters: ReportFilters = {}): Promise<Payout[]> {
+    const groups = await this.buildMonthly(role, userId, filters);
     return groups.map((group) => ({
       id: group.key,
       consignorId: role === 'consignor' ? userId : group.counterpartId,
@@ -58,13 +59,20 @@ export class PayoutsService {
     return paid;
   }
 
-  private async buildMonthly(perspective: Perspective, id: string): Promise<MonthlyPayout[]> {
-    const garments =
+  private async buildMonthly(
+    perspective: Perspective,
+    id: string,
+    filters: ReportFilters = {},
+  ): Promise<MonthlyPayout[]> {
+    const garments = (
       perspective === 'merchant'
         ? await this.garments.byMerchant(id)
-        : await this.garments.byConsignor(id);
+        : await this.garments.byConsignor(id)
+    ).filter((garment) => garmentInScope(garment, filters));
     const garmentById = new Map(garments.map((garment) => [garment.id, garment]));
-    const sales = await this.sales.byGarmentIds([...garmentById.keys()]);
+    const sales = (await this.sales.byGarmentIds([...garmentById.keys()])).filter((sale) =>
+      saleInRange(sale.soldAt, filters),
+    );
 
     const [merchants, consignors] = await Promise.all([
       this.users.merchantSummaries(),

@@ -11,10 +11,8 @@ import { ConsignorPerformance } from './consignor-performance';
 import { ExpiringConsignment } from './expiring-consignment';
 import { PointSales } from './point-sales';
 import { ReceptionDiscrepancyReport } from './reception-discrepancies';
-import { ReportFilters } from './report-filters';
+import { garmentInScope, ReportFilters, saleInRange } from '../shared/report-filters';
 import { RotationReport } from './rotation';
-
-type Garment = Awaited<ReturnType<GarmentsService['byMerchant']>>[number];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -72,11 +70,11 @@ export class ReportsService {
       nameById.set((sp as unknown as { id: string }).id, sp.name);
     }
     const garments = (await this.garments.byMerchant(merchantId)).filter((g) =>
-      this.matchesGarment(g, filters),
+      garmentInScope(g, filters),
     );
     const pointByGarment = new Map(garments.map((g) => [g.id, g.salesPointId]));
     const sales = (await this.sales.byGarmentIds(garments.map((g) => g.id))).filter((s) =>
-      this.saleInRange(s.soldAt, filters),
+      saleInRange(s.soldAt, filters),
     );
 
     const byPoint = new Map<string, PointSales>();
@@ -104,11 +102,11 @@ export class ReportsService {
   async rotation(merchantId: string, filters: ReportFilters = {}): Promise<RotationReport> {
     const now = Date.now();
     const garments = (await this.garments.byMerchant(merchantId)).filter((g) =>
-      this.matchesGarment(g, filters),
+      garmentInScope(g, filters),
     );
     const garmentById = new Map(garments.map((g) => [g.id, g]));
     const sales = (await this.sales.byGarmentIds([...garmentById.keys()])).filter((s) =>
-      this.saleInRange(s.soldAt, filters),
+      saleInRange(s.soldAt, filters),
     );
 
     const bounds = [15, 30, 45, 60, 90, 120, Infinity];
@@ -146,10 +144,10 @@ export class ReportsService {
       (c) => !filters.consignorId || c.id === filters.consignorId,
     );
     const garments = (await this.garments.byMerchant(merchantId)).filter((g) =>
-      this.matchesGarment(g, filters),
+      garmentInScope(g, filters),
     );
     const sales = (await this.sales.byGarmentIds(garments.map((garment) => garment.id))).filter(
-      (s) => this.saleInRange(s.soldAt, filters),
+      (s) => saleInRange(s.soldAt, filters),
     );
     const saleByGarment = new Map(sales.map((sale) => [sale.garmentId, sale]));
 
@@ -218,11 +216,11 @@ export class ReportsService {
 
   async salesByCategory(merchantId: string, filters: ReportFilters = {}): Promise<CategorySales[]> {
     const garments = (await this.garments.byMerchant(merchantId)).filter((g) =>
-      this.matchesGarment(g, filters),
+      garmentInScope(g, filters),
     );
     const garmentById = new Map(garments.map((garment) => [garment.id, garment]));
     const sales = (await this.sales.byGarmentIds([...garmentById.keys()])).filter((s) =>
-      this.saleInRange(s.soldAt, filters),
+      saleInRange(s.soldAt, filters),
     );
 
     const byCategory = new Map<string, CategorySales>();
@@ -295,7 +293,7 @@ export class ReportsService {
     const inStock = (await this.garments.byMerchant(merchantId)).filter(
       (garment) =>
         (garment.status === 'in_stock' || garment.status === 'with_remarks') &&
-        this.matchesGarment(garment, filters),
+        garmentInScope(garment, filters),
     );
     const agreements = await this.agreements.listForUser('merchant', merchantId);
     const agreementByGarment = new Map(agreements.map((a) => [a.garmentId, a]));
@@ -325,21 +323,6 @@ export class ReportsService {
       });
     }
     return items.sort((a, b) => a.daysLeft - b.daysLeft);
-  }
-
-  // Sales-point / category / consignor scope: which garments a report looks at.
-  private matchesGarment(garment: Garment, filters: ReportFilters): boolean {
-    if (filters.salesPointId && garment.salesPointId !== filters.salesPointId) return false;
-    if (filters.category && garment.category !== filters.category) return false;
-    if (filters.consignorId && garment.consignorId !== filters.consignorId) return false;
-    return true;
-  }
-
-  // Date scope: whether a sale falls inside the filtered period.
-  private saleInRange(soldAt: Date, filters: ReportFilters): boolean {
-    if (filters.from && soldAt < filters.from) return false;
-    if (filters.to && soldAt > filters.to) return false;
-    return true;
   }
 
   private addDays(date: Date, days: number): Date {
