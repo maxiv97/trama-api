@@ -147,6 +147,7 @@ describe('Reports (e2e)', () => {
       inStockCount: number;
       liquidatedAmount: number;
       pendingAmount: number;
+      merchantProfit: number;
       avgPayoutDays: number | null;
     }[];
 
@@ -157,10 +158,12 @@ describe('Reports (e2e)', () => {
     expect(ana.inStockCount).toBe(1);
     expect(ana.liquidatedAmount).toBe(6000);
     expect(ana.pendingAmount).toBe(5000);
+    expect(ana.merchantProfit).toBe(25000); // gar-7 (14000) + gar-9 (11000)
     expect(ana.avgPayoutDays).toBe(39); // gar-7: soldAt 2026-05-10 → paidAt 2026-06-18
 
     const luis = rows.find((r) => r.name === 'Luis Ríos')!;
     expect(luis.pendingAmount).toBe(8000);
+    expect(luis.merchantProfit).toBe(19000); // gar-3 (10500) + gar-8 (8500)
     expect(luis.avgPayoutDays).toBeNull(); // no paid sales yet
   });
 
