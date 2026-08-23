@@ -9,6 +9,8 @@ export interface ConsignorPerformance {
   accepted: number;
   decided: number;
   inStockCount: number;
+  receivedCount: number;
+  sellThroughRate: number | null;
   soldCount: number;
   liquidatedAmount: number;
   pendingAmount: number;

@@ -148,6 +148,9 @@ export class ReportsService {
       const inStockCount = owned.filter(
         (g) => g.status === 'in_stock' || g.status === 'with_remarks',
       ).length;
+      // Sell-through = of everything physically received, how much sold. Same "received"
+      // base as the by-category conversion, so the two reports stay comparable.
+      const receivedCount = owned.filter((g) => RECEIVED_STATUSES.includes(g.status)).length;
 
       let liquidatedAmount = 0;
       let pendingAmount = 0;
@@ -180,6 +183,8 @@ export class ReportsService {
         accepted,
         decided,
         inStockCount,
+        receivedCount,
+        sellThroughRate: receivedCount ? Math.round((soldCount / receivedCount) * 100) : null,
         soldCount,
         liquidatedAmount,
         pendingAmount,
