@@ -230,4 +230,129 @@ describe('Reports (e2e)', () => {
       .set(auth(consignorToken))
       .expect(403);
   });
+
+  // ── recorte (filters) ──
+
+  it('filters the by-category report by category', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/reports/by-category')
+      .query({ category: 'Accesorios' })
+      .set(auth(merchantToken))
+      .expect(200);
+
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].category).toBe('Accesorios');
+    expect(res.body[0].soldCount).toBe(1);
+    expect(res.body[0].merchantProfit).toBe(14000);
+    expect(res.body[0].conversion).toBe(100);
+  });
+
+  it('scopes the by-category report to a date range', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/reports/by-category')
+      .query({ from: '2026-06-01', to: '2026-06-30' })
+      .set(auth(merchantToken))
+      .expect(200);
+
+    const rows = res.body as { category: string; soldCount: number; merchantProfit: number }[];
+    // June sales: gar-3 (Calzado) and gar-9 (Pantalones). The May sales drop out.
+    expect(rows.find((r) => r.category === 'Pantalones')?.merchantProfit).toBe(11000);
+    expect(rows.find((r) => r.category === 'Calzado')?.merchantProfit).toBe(10500);
+    // Accesorios only sold in May (gar-7) → still listed via its received stock, but 0 sold in June.
+    expect(rows.find((r) => r.category === 'Accesorios')?.soldCount).toBe(0);
+  });
+
+  it('filters the by-point report by sales point', async () => {
+    const all = (
+      await request(app.getHttpServer())
+        .get('/api/reports/by-point')
+        .set(auth(merchantToken))
+        .expect(200)
+    ).body as { salesPointId: string; name: string }[];
+    const nc = all.find((r) => r.name === 'Trama Nueva Córdoba')!;
+
+    const res = await request(app.getHttpServer())
+      .get('/api/reports/by-point')
+      .query({ salesPointId: nc.salesPointId })
+      .set(auth(merchantToken))
+      .expect(200);
+
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].name).toBe('Trama Nueva Córdoba');
+    expect(res.body[0].merchantProfit).toBe(25000);
+  });
+
+  it('filters the consignors report by consignor', async () => {
+    const all = (
+      await request(app.getHttpServer())
+        .get('/api/reports/consignors')
+        .set(auth(merchantToken))
+        .expect(200)
+    ).body as { consignorId: string; name: string }[];
+    const ana = all.find((r) => r.name === 'Ana Gómez')!;
+
+    const res = await request(app.getHttpServer())
+      .get('/api/reports/consignors')
+      .query({ consignorId: ana.consignorId })
+      .set(auth(merchantToken))
+      .expect(200);
+
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].name).toBe('Ana Gómez');
+  });
+
+  it('scopes the consignors report to a date range', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/reports/consignors')
+      .query({ from: '2026-06-01', to: '2026-06-30' })
+      .set(auth(merchantToken))
+      .expect(200);
+
+    const rows = res.body as {
+      name: string;
+      soldCount: number;
+      liquidatedAmount: number;
+      pendingAmount: number;
+      merchantProfit: number;
+      avgPayoutDays: number | null;
+    }[];
+
+    const ana = rows.find((r) => r.name === 'Ana Gómez')!;
+    // June: only gar-9 (unpaid). gar-7's May sale/payout drops out of the window.
+    expect(ana.soldCount).toBe(1);
+    expect(ana.liquidatedAmount).toBe(0);
+    expect(ana.pendingAmount).toBe(5000);
+    expect(ana.merchantProfit).toBe(11000);
+    expect(ana.avgPayoutDays).toBeNull();
+
+    const luis = rows.find((r) => r.name === 'Luis Ríos')!;
+    // June: only gar-3 (May's gar-8 drops out).
+    expect(luis.soldCount).toBe(1);
+    expect(luis.merchantProfit).toBe(10500);
+  });
+
+  it('filters the expiring report by category', async () => {
+    const camperas = await request(app.getHttpServer())
+      .get('/api/reports/expiring')
+      .query({ withinDays: 3650, category: 'Camperas y abrigos' })
+      .set(auth(merchantToken))
+      .expect(200);
+    expect(camperas.body).toHaveLength(1);
+    expect(camperas.body[0].name).toBe('Campera de jean');
+
+    const calzado = await request(app.getHttpServer())
+      .get('/api/reports/expiring')
+      .query({ withinDays: 3650, category: 'Calzado' })
+      .set(auth(merchantToken))
+      .expect(200);
+    expect(calzado.body).toHaveLength(0);
+  });
+
+  it('rejects a malformed date filter', () => {
+    return request(app.getHttpServer())
+      .get('/api/reports/by-category')
+      .query({ from: '01-06-2026' })
+      .set(auth(merchantToken))
+      .expect(400);
+  });
 });
