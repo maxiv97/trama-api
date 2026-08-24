@@ -38,8 +38,8 @@ export class ReportsController {
 
   @Get('discrepancies')
   @Roles('merchant')
-  discrepancies(@CurrentUser() user: SessionUser) {
-    return this.reports.receptionDiscrepancies(user.id);
+  discrepancies(@CurrentUser() user: SessionUser, @Query() filters: ReportFiltersDto) {
+    return this.reports.receptionDiscrepancies(user.id, toReportFilters(filters));
   }
 
   @Get('by-point')

@@ -98,4 +98,38 @@ describe('Reception discrepancies report (e2e)', () => {
       .set(auth(consignorToken))
       .expect(403);
   });
+
+  it('filters the discrepancies report by category', async () => {
+    const camperas = await request(app.getHttpServer())
+      .get('/api/reports/discrepancies')
+      .query({ category: 'Camperas y abrigos' })
+      .set(auth(merchantToken))
+      .expect(200);
+    expect(camperas.body.totalReceptions).toBe(2);
+
+    const calzado = await request(app.getHttpServer())
+      .get('/api/reports/discrepancies')
+      .query({ category: 'Calzado' })
+      .set(auth(merchantToken))
+      .expect(200);
+    expect(calzado.body.totalReceptions).toBe(0);
+    expect(calzado.body.rate).toBeNull();
+  });
+
+  it('scopes the discrepancies report to a date range', async () => {
+    // Both receptions were stamped just now, so a window that ends in the past is empty.
+    const past = await request(app.getHttpServer())
+      .get('/api/reports/discrepancies')
+      .query({ to: '2000-12-31' })
+      .set(auth(merchantToken))
+      .expect(200);
+    expect(past.body.totalReceptions).toBe(0);
+
+    const wide = await request(app.getHttpServer())
+      .get('/api/reports/discrepancies')
+      .query({ from: '2000-01-01' })
+      .set(auth(merchantToken))
+      .expect(200);
+    expect(wide.body.totalReceptions).toBe(2);
+  });
 });

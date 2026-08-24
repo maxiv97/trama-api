@@ -11,7 +11,7 @@ import { ConsignorPerformance } from './consignor-performance';
 import { ExpiringConsignment } from './expiring-consignment';
 import { PointSales } from './point-sales';
 import { ReceptionDiscrepancyReport } from './reception-discrepancies';
-import { garmentInScope, ReportFilters, saleInRange } from '../shared/report-filters';
+import { garmentInScope, ReportFilters, dateInRange } from '../shared/report-filters';
 import { RotationReport } from './rotation';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -39,9 +39,16 @@ export class ReportsService {
     private readonly users: UsersService,
   ) {}
 
-  async receptionDiscrepancies(merchantId: string): Promise<ReceptionDiscrepancyReport> {
-    const garments = await this.garments.byMerchant(merchantId);
-    const receptions = await this.receptions.byGarmentIds(garments.map((g) => g.id));
+  async receptionDiscrepancies(
+    merchantId: string,
+    filters: ReportFilters = {},
+  ): Promise<ReceptionDiscrepancyReport> {
+    const garments = (await this.garments.byMerchant(merchantId)).filter((g) =>
+      garmentInScope(g, filters),
+    );
+    const receptions = (await this.receptions.byGarmentIds(garments.map((g) => g.id))).filter((r) =>
+      dateInRange(r.receivedAt, filters),
+    );
 
     const counts = new Map<ReceptionDiscrepancy, number>();
     let withDiscrepancies = 0;
@@ -74,7 +81,7 @@ export class ReportsService {
     );
     const pointByGarment = new Map(garments.map((g) => [g.id, g.salesPointId]));
     const sales = (await this.sales.byGarmentIds(garments.map((g) => g.id))).filter((s) =>
-      saleInRange(s.soldAt, filters),
+      dateInRange(s.soldAt, filters),
     );
 
     const byPoint = new Map<string, PointSales>();
@@ -106,7 +113,7 @@ export class ReportsService {
     );
     const garmentById = new Map(garments.map((g) => [g.id, g]));
     const sales = (await this.sales.byGarmentIds([...garmentById.keys()])).filter((s) =>
-      saleInRange(s.soldAt, filters),
+      dateInRange(s.soldAt, filters),
     );
 
     const bounds = [15, 30, 45, 60, 90, 120, Infinity];
@@ -147,7 +154,7 @@ export class ReportsService {
       garmentInScope(g, filters),
     );
     const sales = (await this.sales.byGarmentIds(garments.map((garment) => garment.id))).filter(
-      (s) => saleInRange(s.soldAt, filters),
+      (s) => dateInRange(s.soldAt, filters),
     );
     const saleByGarment = new Map(sales.map((sale) => [sale.garmentId, sale]));
 
@@ -207,6 +214,7 @@ export class ReportsService {
         liquidatedAmount,
         pendingAmount,
         merchantProfit,
+        paidCount,
         avgPayoutDays: paidCount ? Math.round(payoutDaysTotal / paidCount) : null,
       };
     });
@@ -220,7 +228,7 @@ export class ReportsService {
     );
     const garmentById = new Map(garments.map((garment) => [garment.id, garment]));
     const sales = (await this.sales.byGarmentIds([...garmentById.keys()])).filter((s) =>
-      saleInRange(s.soldAt, filters),
+      dateInRange(s.soldAt, filters),
     );
 
     const byCategory = new Map<string, CategorySales>();

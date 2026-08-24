@@ -4,7 +4,7 @@ import { GarmentsService } from '../garments/garments.service';
 import { SaleDocument } from '../sales/schemas/sale.schema';
 import { SalesService } from '../sales/sales.service';
 import { Role } from '../shared/domain/enums';
-import { garmentInScope, ReportFilters, saleInRange } from '../shared/report-filters';
+import { garmentInScope, ReportFilters, dateInRange } from '../shared/report-filters';
 import { monthKey } from '../shared/utils/month.util';
 import { ConsignorSummary, MerchantSummary, UsersService } from '../users/users.service';
 import { SettleDto } from './dto/settle.dto';
@@ -71,7 +71,7 @@ export class PayoutsService {
     ).filter((garment) => garmentInScope(garment, filters));
     const garmentById = new Map(garments.map((garment) => [garment.id, garment]));
     const sales = (await this.sales.byGarmentIds([...garmentById.keys()])).filter((sale) =>
-      saleInRange(sale.soldAt, filters),
+      dateInRange(sale.soldAt, filters),
     );
 
     const [merchants, consignors] = await Promise.all([
