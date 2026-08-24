@@ -149,4 +149,75 @@ describe('Payouts (e2e)', () => {
       .send({ garmentIds: [garmentId], paymentMethod: 'cash' })
       .expect(403);
   });
+
+  // ── recorte (filters) ──
+
+  it('scopes the monthly payout to a date range', async () => {
+    await soldGarment();
+
+    const past = await request(app.getHttpServer())
+      .get('/api/payouts/monthly')
+      .query({ from: '2000-01-01', to: '2000-12-31' })
+      .set('Authorization', `Bearer ${merchantToken}`)
+      .expect(200);
+    // Every seeded sale is stamped this month, so a past window yields nothing.
+    expect(past.body).toEqual([]);
+
+    const inRange = await request(app.getHttpServer())
+      .get('/api/payouts/monthly')
+      .query({ from: `${soldMonth}-01`, to: `${soldMonth}-28` })
+      .set('Authorization', `Bearer ${merchantToken}`)
+      .expect(200);
+    expect(inRange.body.find((g: { month: string }) => g.month === soldMonth)).toBeDefined();
+  });
+
+  it('filters the monthly payout by category', async () => {
+    await soldGarment();
+
+    const calzado = await request(app.getHttpServer())
+      .get('/api/payouts/monthly')
+      .query({ category: 'Calzado' })
+      .set('Authorization', `Bearer ${merchantToken}`)
+      .expect(200);
+    expect(calzado.body).toEqual([]);
+
+    const camperas = await request(app.getHttpServer())
+      .get('/api/payouts/monthly')
+      .query({ category: 'Camperas y abrigos' })
+      .set('Authorization', `Bearer ${merchantToken}`)
+      .expect(200);
+    expect(camperas.body.length).toBeGreaterThan(0);
+  });
+
+  it('filters the monthly payout by consignor', async () => {
+    await soldGarment();
+
+    const all = await request(app.getHttpServer())
+      .get('/api/payouts/monthly')
+      .set('Authorization', `Bearer ${merchantToken}`)
+      .expect(200);
+    const anaId = all.body[0].counterpartId as string;
+
+    const mine = await request(app.getHttpServer())
+      .get('/api/payouts/monthly')
+      .query({ consignorId: anaId })
+      .set('Authorization', `Bearer ${merchantToken}`)
+      .expect(200);
+    expect(mine.body.length).toBeGreaterThan(0);
+
+    const none = await request(app.getHttpServer())
+      .get('/api/payouts/monthly')
+      .query({ consignorId: 'does-not-exist' })
+      .set('Authorization', `Bearer ${merchantToken}`)
+      .expect(200);
+    expect(none.body).toEqual([]);
+  });
+
+  it('rejects a malformed date filter', () => {
+    return request(app.getHttpServer())
+      .get('/api/payouts/monthly')
+      .query({ to: '2026/06/30' })
+      .set('Authorization', `Bearer ${merchantToken}`)
+      .expect(400);
+  });
 });

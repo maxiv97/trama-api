@@ -2,7 +2,7 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { SessionUser } from '../auth/session-user';
-import { ReportFiltersDto, toReportFilters } from './dto/report-filters.dto';
+import { ReportFiltersDto, toReportFilters } from '../shared/dto/report-filters.dto';
 import { ReportsService } from './reports.service';
 
 @Controller('reports')
