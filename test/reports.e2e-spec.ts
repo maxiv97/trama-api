@@ -164,6 +164,7 @@ describe('Reports (e2e)', () => {
     expect(ana.liquidatedAmount).toBe(6000);
     expect(ana.pendingAmount).toBe(5000);
     expect(ana.merchantProfit).toBe(25000); // gar-7 (14000) + gar-9 (11000)
+    expect(ana.paidCount).toBe(1); // only gar-7 has been paid out
     expect(ana.avgPayoutDays).toBe(39); // gar-7: soldAt 2026-05-10 → paidAt 2026-06-18
 
     const luis = rows.find((r) => r.name === 'Luis Ríos')!;
@@ -172,6 +173,7 @@ describe('Reports (e2e)', () => {
     expect(luis.sellThroughRate).toBe(100);
     expect(luis.pendingAmount).toBe(8000);
     expect(luis.merchantProfit).toBe(19000); // gar-3 (10500) + gar-8 (8500)
+    expect(luis.paidCount).toBe(0); // nothing paid out yet
     expect(luis.avgPayoutDays).toBeNull(); // no paid sales yet
   });
 

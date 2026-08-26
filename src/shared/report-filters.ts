@@ -22,7 +22,7 @@ export function garmentInScope(
 }
 
 // Date scope: whether a sale falls inside the filtered period.
-export function saleInRange(soldAt: Date, filters: ReportFilters): boolean {
+export function dateInRange(soldAt: Date, filters: ReportFilters): boolean {
   if (filters.from && soldAt < filters.from) return false;
   if (filters.to && soldAt > filters.to) return false;
   return true;
