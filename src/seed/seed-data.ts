@@ -1,4 +1,8 @@
-import type { GarmentCondition, GarmentStatus, NotificationType } from '../shared/domain/enums';
+import type {
+  GarmentCondition,
+  GarmentStatus,
+  NotificationType,
+} from '../shared/domain/enums';
 
 interface SeedTimelineEvent {
   date: Date;
@@ -82,7 +86,12 @@ export const SEED_GARMENTS: SeedGarment[] = [
     status: 'under_review',
     createdAt: new Date('2026-06-20'),
     timeline: [
-      { date: new Date('2026-06-20'), actor: 'consignor', status: 'submitted', note: 'Propuesta enviada' },
+      {
+        date: new Date('2026-06-20'),
+        actor: 'consignor',
+        status: 'submitted',
+        note: 'Propuesta enviada',
+      },
       { date: new Date('2026-06-20'), actor: 'system', status: 'under_review' },
     ],
   },
@@ -102,8 +111,18 @@ export const SEED_GARMENTS: SeedGarment[] = [
     createdAt: new Date('2026-05-10'),
     timeline: [
       { date: new Date('2026-05-10'), actor: 'consignor', status: 'submitted' },
-      { date: new Date('2026-05-12'), actor: 'merchant', status: 'agreed', note: 'Precio acordado' },
-      { date: new Date('2026-05-15'), actor: 'merchant', status: 'in_stock', note: 'Recibida conforme' },
+      {
+        date: new Date('2026-05-12'),
+        actor: 'merchant',
+        status: 'agreed',
+        note: 'Precio acordado',
+      },
+      {
+        date: new Date('2026-05-15'),
+        actor: 'merchant',
+        status: 'in_stock',
+        note: 'Recibida conforme',
+      },
     ],
   },
   {
@@ -124,7 +143,12 @@ export const SEED_GARMENTS: SeedGarment[] = [
       { date: new Date('2026-04-15'), actor: 'consignor', status: 'submitted' },
       { date: new Date('2026-04-17'), actor: 'merchant', status: 'agreed' },
       { date: new Date('2026-04-20'), actor: 'merchant', status: 'in_stock' },
-      { date: new Date('2026-06-05'), actor: 'merchant', status: 'sold', note: 'Vendida' },
+      {
+        date: new Date('2026-06-05'),
+        actor: 'merchant',
+        status: 'sold',
+        note: 'Vendida',
+      },
     ],
   },
   {
@@ -145,7 +169,12 @@ export const SEED_GARMENTS: SeedGarment[] = [
     timeline: [
       { date: new Date('2026-06-25'), actor: 'consignor', status: 'submitted' },
       { date: new Date('2026-06-25'), actor: 'system', status: 'under_review' },
-      { date: new Date('2026-06-27'), actor: 'merchant', status: 'counteroffer', note: 'Contraoferta enviada' },
+      {
+        date: new Date('2026-06-27'),
+        actor: 'merchant',
+        status: 'counteroffer',
+        note: 'Contraoferta enviada',
+      },
     ],
   },
   {
@@ -166,7 +195,12 @@ export const SEED_GARMENTS: SeedGarment[] = [
     timeline: [
       { date: new Date('2026-06-18'), actor: 'consignor', status: 'submitted' },
       { date: new Date('2026-06-18'), actor: 'system', status: 'under_review' },
-      { date: new Date('2026-06-21'), actor: 'merchant', status: 'agreed', note: 'Precio acordado' },
+      {
+        date: new Date('2026-06-21'),
+        actor: 'merchant',
+        status: 'agreed',
+        note: 'Precio acordado',
+      },
     ],
   },
   {
@@ -185,7 +219,12 @@ export const SEED_GARMENTS: SeedGarment[] = [
     status: 'under_review',
     createdAt: new Date('2026-06-29'),
     timeline: [
-      { date: new Date('2026-06-29'), actor: 'consignor', status: 'submitted', note: 'Propuesta enviada' },
+      {
+        date: new Date('2026-06-29'),
+        actor: 'consignor',
+        status: 'submitted',
+        note: 'Propuesta enviada',
+      },
       { date: new Date('2026-06-29'), actor: 'system', status: 'under_review' },
     ],
   },
@@ -206,10 +245,30 @@ export const SEED_GARMENTS: SeedGarment[] = [
     createdAt: new Date('2026-04-08'),
     timeline: [
       { date: new Date('2026-04-08'), actor: 'consignor', status: 'submitted' },
-      { date: new Date('2026-04-10'), actor: 'merchant', status: 'agreed', note: 'Precio acordado' },
-      { date: new Date('2026-04-14'), actor: 'merchant', status: 'in_stock', note: 'Recibida conforme' },
-      { date: new Date('2026-05-10'), actor: 'merchant', status: 'sold', note: 'Vendida' },
-      { date: new Date('2026-06-18'), actor: 'merchant', status: 'paid_out', note: 'Liquidación pagada' },
+      {
+        date: new Date('2026-04-10'),
+        actor: 'merchant',
+        status: 'agreed',
+        note: 'Precio acordado',
+      },
+      {
+        date: new Date('2026-04-14'),
+        actor: 'merchant',
+        status: 'in_stock',
+        note: 'Recibida conforme',
+      },
+      {
+        date: new Date('2026-05-10'),
+        actor: 'merchant',
+        status: 'sold',
+        note: 'Vendida',
+      },
+      {
+        date: new Date('2026-06-18'),
+        actor: 'merchant',
+        status: 'paid_out',
+        note: 'Liquidación pagada',
+      },
     ],
   },
   {
@@ -229,9 +288,24 @@ export const SEED_GARMENTS: SeedGarment[] = [
     createdAt: new Date('2026-04-20'),
     timeline: [
       { date: new Date('2026-04-20'), actor: 'consignor', status: 'submitted' },
-      { date: new Date('2026-04-22'), actor: 'merchant', status: 'agreed', note: 'Precio acordado' },
-      { date: new Date('2026-04-26'), actor: 'merchant', status: 'in_stock', note: 'Recibida conforme' },
-      { date: new Date('2026-05-22'), actor: 'merchant', status: 'sold', note: 'Vendida' },
+      {
+        date: new Date('2026-04-22'),
+        actor: 'merchant',
+        status: 'agreed',
+        note: 'Precio acordado',
+      },
+      {
+        date: new Date('2026-04-26'),
+        actor: 'merchant',
+        status: 'in_stock',
+        note: 'Recibida conforme',
+      },
+      {
+        date: new Date('2026-05-22'),
+        actor: 'merchant',
+        status: 'sold',
+        note: 'Vendida',
+      },
     ],
   },
   {
@@ -251,9 +325,24 @@ export const SEED_GARMENTS: SeedGarment[] = [
     createdAt: new Date('2026-05-18'),
     timeline: [
       { date: new Date('2026-05-18'), actor: 'consignor', status: 'submitted' },
-      { date: new Date('2026-05-20'), actor: 'merchant', status: 'agreed', note: 'Precio acordado' },
-      { date: new Date('2026-05-24'), actor: 'merchant', status: 'in_stock', note: 'Recibida conforme' },
-      { date: new Date('2026-06-12'), actor: 'merchant', status: 'sold', note: 'Vendida' },
+      {
+        date: new Date('2026-05-20'),
+        actor: 'merchant',
+        status: 'agreed',
+        note: 'Precio acordado',
+      },
+      {
+        date: new Date('2026-05-24'),
+        actor: 'merchant',
+        status: 'in_stock',
+        note: 'Recibida conforme',
+      },
+      {
+        date: new Date('2026-06-12'),
+        actor: 'merchant',
+        status: 'sold',
+        note: 'Vendida',
+      },
     ],
   },
 ];
@@ -272,7 +361,11 @@ export const SEED_PROPOSALS: SeedProposal[] = [
     calculatedSalePrice: 30000,
     status: 'counteroffer',
     createdAt: new Date('2026-06-25'),
-    counteroffer: { consignorPrice: 6000, salePrice: 20000, date: new Date('2026-06-27') },
+    counteroffer: {
+      consignorPrice: 6000,
+      salePrice: 20000,
+      date: new Date('2026-06-27'),
+    },
   },
   {
     garmentKey: 'gar-5',
@@ -291,23 +384,113 @@ export const SEED_PROPOSALS: SeedProposal[] = [
 ];
 
 export const SEED_AGREEMENTS: SeedAgreement[] = [
-  { garmentKey: 'gar-2', agreedConsignorPrice: 3000, agreedSalePrice: 10000, appliedCommission: 70, agreedAt: new Date('2026-05-12'), saleDeadline: new Date('2026-08-12') },
-  { garmentKey: 'gar-3', agreedConsignorPrice: 4500, agreedSalePrice: 15000, appliedCommission: 70, agreedAt: new Date('2026-04-17'), saleDeadline: new Date('2026-07-17') },
-  { garmentKey: 'gar-5', agreedConsignorPrice: 4500, agreedSalePrice: 15000, appliedCommission: 70, agreedAt: new Date('2026-06-21'), saleDeadline: new Date('2026-09-21') },
-  { garmentKey: 'gar-7', agreedConsignorPrice: 6000, agreedSalePrice: 20000, appliedCommission: 70, agreedAt: new Date('2026-04-10'), saleDeadline: new Date('2026-07-10') },
-  { garmentKey: 'gar-8', agreedConsignorPrice: 3500, agreedSalePrice: 12000, appliedCommission: 70, agreedAt: new Date('2026-04-22'), saleDeadline: new Date('2026-07-22') },
-  { garmentKey: 'gar-9', agreedConsignorPrice: 5000, agreedSalePrice: 16000, appliedCommission: 70, agreedAt: new Date('2026-05-20'), saleDeadline: new Date('2026-08-20') },
+  {
+    garmentKey: 'gar-2',
+    agreedConsignorPrice: 3000,
+    agreedSalePrice: 10000,
+    appliedCommission: 70,
+    agreedAt: new Date('2026-05-12'),
+    saleDeadline: new Date('2026-08-12'),
+  },
+  {
+    garmentKey: 'gar-3',
+    agreedConsignorPrice: 4500,
+    agreedSalePrice: 15000,
+    appliedCommission: 70,
+    agreedAt: new Date('2026-04-17'),
+    saleDeadline: new Date('2026-07-17'),
+  },
+  {
+    garmentKey: 'gar-5',
+    agreedConsignorPrice: 4500,
+    agreedSalePrice: 15000,
+    appliedCommission: 70,
+    agreedAt: new Date('2026-06-21'),
+    saleDeadline: new Date('2026-09-21'),
+  },
+  {
+    garmentKey: 'gar-7',
+    agreedConsignorPrice: 6000,
+    agreedSalePrice: 20000,
+    appliedCommission: 70,
+    agreedAt: new Date('2026-04-10'),
+    saleDeadline: new Date('2026-07-10'),
+  },
+  {
+    garmentKey: 'gar-8',
+    agreedConsignorPrice: 3500,
+    agreedSalePrice: 12000,
+    appliedCommission: 70,
+    agreedAt: new Date('2026-04-22'),
+    saleDeadline: new Date('2026-07-22'),
+  },
+  {
+    garmentKey: 'gar-9',
+    agreedConsignorPrice: 5000,
+    agreedSalePrice: 16000,
+    appliedCommission: 70,
+    agreedAt: new Date('2026-05-20'),
+    saleDeadline: new Date('2026-08-20'),
+  },
 ];
 
 export const SEED_SALES: SeedSale[] = [
-  { garmentKey: 'gar-3', actualSalePrice: 15000, soldAt: new Date('2026-06-28'), consignorAmount: 4500, merchantCommission: 10500 },
-  { garmentKey: 'gar-7', actualSalePrice: 20000, soldAt: new Date('2026-05-10'), consignorAmount: 6000, merchantCommission: 14000, paidAt: new Date('2026-06-18'), paymentMethod: 'transfer', receiptNumber: 'TR-0518' },
-  { garmentKey: 'gar-8', actualSalePrice: 12000, soldAt: new Date('2026-05-22'), consignorAmount: 3500, merchantCommission: 8500 },
-  { garmentKey: 'gar-9', actualSalePrice: 16000, soldAt: new Date('2026-06-12'), consignorAmount: 5000, merchantCommission: 11000 },
+  {
+    garmentKey: 'gar-3',
+    actualSalePrice: 15000,
+    soldAt: new Date('2026-06-28'),
+    consignorAmount: 4500,
+    merchantCommission: 10500,
+  },
+  {
+    garmentKey: 'gar-7',
+    actualSalePrice: 20000,
+    soldAt: new Date('2026-05-10'),
+    consignorAmount: 6000,
+    merchantCommission: 14000,
+    paidAt: new Date('2026-06-18'),
+    paymentMethod: 'transfer',
+    receiptNumber: 'TR-0518',
+  },
+  {
+    garmentKey: 'gar-8',
+    actualSalePrice: 12000,
+    soldAt: new Date('2026-05-22'),
+    consignorAmount: 3500,
+    merchantCommission: 8500,
+  },
+  {
+    garmentKey: 'gar-9',
+    actualSalePrice: 16000,
+    soldAt: new Date('2026-06-12'),
+    consignorAmount: 5000,
+    merchantCommission: 11000,
+  },
 ];
 
 export const SEED_NOTIFICATIONS: SeedNotification[] = [
-  { userKey: 'con-ana', garmentKey: 'gar-1', base: '/c', type: 'proposal', text: 'Tu propuesta de "Vestido de fiesta" está en revisión.', date: new Date('2026-06-20') },
-  { userKey: 'con-luis', garmentKey: 'gar-3', base: '/c', type: 'sale', text: '¡Vendimos tus "Zapatillas urbanas"!', date: new Date('2026-06-05') },
-  { userKey: 'mer-trama', garmentKey: 'gar-1', base: '/m', type: 'proposal', text: 'Nueva propuesta de Ana Gómez para revisar.', date: new Date('2026-06-20') },
+  {
+    userKey: 'con-ana',
+    garmentKey: 'gar-1',
+    base: '/c',
+    type: 'proposal',
+    text: 'Tu propuesta de "Vestido de fiesta" está en revisión.',
+    date: new Date('2026-06-20'),
+  },
+  {
+    userKey: 'con-luis',
+    garmentKey: 'gar-3',
+    base: '/c',
+    type: 'sale',
+    text: '¡Vendimos tus "Zapatillas urbanas"!',
+    date: new Date('2026-06-05'),
+  },
+  {
+    userKey: 'mer-trama',
+    garmentKey: 'gar-1',
+    base: '/m',
+    type: 'proposal',
+    text: 'Nueva propuesta de Ana Gómez para revisar.',
+    date: new Date('2026-06-20'),
+  },
 ];
