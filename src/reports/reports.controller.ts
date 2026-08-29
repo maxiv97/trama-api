@@ -53,4 +53,16 @@ export class ReportsController {
   rotation(@CurrentUser() user: SessionUser, @Query() filters: ReportFiltersDto) {
     return this.reports.rotation(user.id, toReportFilters(filters));
   }
+
+  @Get('summary')
+  @Roles('merchant')
+  summary(@CurrentUser() user: SessionUser, @Query() filters: ReportFiltersDto) {
+    return this.reports.summary(user.id, toReportFilters(filters));
+  }
+
+  @Get('weekly')
+  @Roles('merchant')
+  weekly(@CurrentUser() user: SessionUser, @Query() filters: ReportFiltersDto) {
+    return this.reports.weekly(user.id, toReportFilters(filters));
+  }
 }
