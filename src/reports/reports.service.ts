@@ -13,6 +13,7 @@ import { PointSales } from './point-sales';
 import { ReceptionDiscrepancyReport } from './reception-discrepancies';
 import { garmentInScope, ReportFilters, dateInRange } from '../shared/report-filters';
 import { RotationReport } from './rotation';
+import { SummaryKpis, SummaryReport, WeeklyPoint } from './summary';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -331,6 +332,76 @@ export class ReportsService {
       });
     }
     return items.sort((a, b) => a.daysLeft - b.daysLeft);
+  }
+
+  async summary(merchantId: string, filters: ReportFilters = {}): Promise<SummaryReport> {
+    const garments = (await this.garments.byMerchant(merchantId)).filter((g) =>
+      garmentInScope(g, filters),
+    );
+    const sales = await this.sales.byGarmentIds(garments.map((g) => g.id));
+
+    const { current, previous } = this.periods(filters);
+    const kpis = (from: Date, to: Date): SummaryKpis => {
+      let profit = 0;
+      let revenue = 0;
+      let soldCount = 0;
+      let pendingPayout = 0;
+      for (const sale of sales) {
+        if (sale.soldAt < from || sale.soldAt > to) continue;
+        soldCount += 1;
+        profit += sale.merchantCommission;
+        revenue += sale.actualSalePrice;
+        if (!sale.paidAt) pendingPayout += sale.consignorAmount;
+      }
+      return { profit, revenue, soldCount, avgTicket: soldCount ? Math.round(revenue / soldCount) : 0, pendingPayout };
+    };
+
+    return { current: kpis(current.from, current.to), previous: kpis(previous.from, previous.to) };
+  }
+
+  async weekly(merchantId: string, filters: ReportFilters = {}, weeks = 6): Promise<WeeklyPoint[]> {
+    const garments = (await this.garments.byMerchant(merchantId)).filter((g) =>
+      garmentInScope(g, filters),
+    );
+    const sales = await this.sales.byGarmentIds(garments.map((g) => g.id));
+
+    // A fixed trailing window: the last `weeks` 7-day buckets ending today. Ignores from/to.
+    const now = new Date();
+    const endOfToday = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999),
+    );
+    const points: WeeklyPoint[] = [];
+    for (let i = weeks - 1; i >= 0; i -= 1) {
+      const to = new Date(endOfToday.getTime() - i * 7 * DAY_MS);
+      const from = new Date(to.getTime() - 7 * DAY_MS + 1);
+      let profit = 0;
+      let soldCount = 0;
+      for (const sale of sales) {
+        if (sale.soldAt < from || sale.soldAt > to) continue;
+        profit += sale.merchantCommission;
+        soldCount += 1;
+      }
+      points.push({ weekStart: from.toISOString().slice(0, 10), profit, soldCount });
+    }
+    return points;
+  }
+
+  // Current period from the filter (or the current month by default) and the equal-length
+  // window right before it, for period-over-period deltas.
+  private periods(filters: ReportFilters): {
+    current: { from: Date; to: Date };
+    previous: { from: Date; to: Date };
+  } {
+    const now = new Date();
+    const from =
+      filters.from ?? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const to =
+      filters.to ??
+      new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+    const duration = to.getTime() - from.getTime();
+    const prevTo = new Date(from.getTime() - 1);
+    const prevFrom = new Date(prevTo.getTime() - duration);
+    return { current: { from, to }, previous: { from: prevFrom, to: prevTo } };
   }
 
   private addDays(date: Date, days: number): Date {

@@ -357,4 +357,68 @@ describe('Reports (e2e)', () => {
       .set(auth(merchantToken))
       .expect(400);
   });
+
+  // ── summary + weekly (para el Resumen) ──
+
+  it('reports the summary KPIs for the period', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/reports/summary')
+      .query({ from: '2026-04-01', to: '2026-06-30' })
+      .set(auth(merchantToken))
+      .expect(200);
+
+    // The four seeded sales all fall in this window.
+    expect(res.body.current.profit).toBe(44000);
+    expect(res.body.current.revenue).toBe(63000);
+    expect(res.body.current.soldCount).toBe(4);
+    expect(res.body.current.avgTicket).toBe(15750);
+    expect(res.body.current.pendingPayout).toBe(13000); // gar-3 + gar-8 + gar-9 unpaid
+    // The equal-length window before April has no sales.
+    expect(res.body.previous.soldCount).toBe(0);
+    expect(res.body.previous.profit).toBe(0);
+  });
+
+  it('computes the previous period for deltas', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/reports/summary')
+      .query({ from: '2026-06-01', to: '2026-06-30' })
+      .set(auth(merchantToken))
+      .expect(200);
+
+    // June: gar-3 + gar-9.
+    expect(res.body.current.soldCount).toBe(2);
+    expect(res.body.current.profit).toBe(21500);
+    // The prior ~30-day window lands in May: gar-7 + gar-8.
+    expect(res.body.previous.soldCount).toBe(2);
+    expect(res.body.previous.profit).toBe(22500);
+  });
+
+  it('forbids a consignor from the summary', () => {
+    return request(app.getHttpServer())
+      .get('/api/reports/summary')
+      .set(auth(consignorToken))
+      .expect(403);
+  });
+
+  it('returns a six-week profit series', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/reports/weekly')
+      .set(auth(merchantToken))
+      .expect(200);
+
+    const series = res.body as { weekStart: string; profit: number; soldCount: number }[];
+    expect(series).toHaveLength(6);
+    for (const point of series) {
+      expect(typeof point.weekStart).toBe('string');
+      expect(typeof point.profit).toBe('number');
+      expect(typeof point.soldCount).toBe('number');
+    }
+  });
+
+  it('forbids a consignor from the weekly report', () => {
+    return request(app.getHttpServer())
+      .get('/api/reports/weekly')
+      .set(auth(consignorToken))
+      .expect(403);
+  });
 });
