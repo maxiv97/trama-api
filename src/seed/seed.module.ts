@@ -1,9 +1,19 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Agreement, AgreementSchema } from '../agreements/schemas/agreement.schema';
+import {
+  Agreement,
+  AgreementSchema,
+} from '../agreements/schemas/agreement.schema';
 import { Garment, GarmentSchema } from '../garments/schemas/garment.schema';
-import { Notification, NotificationSchema } from '../notifications/schemas/notification.schema';
+import {
+  Notification,
+  NotificationSchema,
+} from '../notifications/schemas/notification.schema';
 import { Proposal, ProposalSchema } from '../proposals/schemas/proposal.schema';
+import {
+  Reception,
+  ReceptionSchema,
+} from '../receptions/schemas/reception.schema';
 import { Sale, SaleSchema } from '../sales/schemas/sale.schema';
 import { UsersModule } from '../users/users.module';
 import { SeedService } from './seed.service';
@@ -16,6 +26,7 @@ import { SeedService } from './seed.service';
       { name: Proposal.name, schema: ProposalSchema },
       { name: Agreement.name, schema: AgreementSchema },
       { name: Sale.name, schema: SaleSchema },
+      { name: Reception.name, schema: ReceptionSchema },
       { name: Notification.name, schema: NotificationSchema },
     ]),
   ],
