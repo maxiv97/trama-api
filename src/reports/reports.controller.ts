@@ -42,6 +42,12 @@ export class ReportsController {
     return this.reports.receptionDiscrepancies(user.id, toReportFilters(filters));
   }
 
+  @Get('discrepancies/detail')
+  @Roles('merchant')
+  discrepanciesDetail(@CurrentUser() user: SessionUser, @Query() filters: ReportFiltersDto) {
+    return this.reports.receptionDiscrepancyDetail(user.id, toReportFilters(filters));
+  }
+
   @Get('by-point')
   @Roles('merchant')
   byPoint(@CurrentUser() user: SessionUser, @Query() filters: ReportFiltersDto) {

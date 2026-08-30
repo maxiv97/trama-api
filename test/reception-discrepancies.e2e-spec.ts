@@ -92,6 +92,28 @@ describe('Reception discrepancies report (e2e)', () => {
     expect(types).toEqual(expect.arrayContaining(['condition', 'damage']));
   });
 
+  it('lists the per-garment detail of receptions with observations', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/reports/discrepancies/detail')
+      .set(auth(merchantToken))
+      .expect(200);
+
+    const rows = res.body as {
+      garmentName: string;
+      category: string;
+      consignorName: string;
+      daysInStock: number;
+      discrepancies: string[];
+    }[];
+    // Only the with_remarks reception has observations.
+    expect(rows).toHaveLength(1);
+    expect(rows[0].garmentName).toBe('Campera de jean');
+    expect(rows[0].category).toBe('Camperas y abrigos');
+    expect(rows[0].consignorName).toBe('Ana Gómez');
+    expect(rows[0].discrepancies).toEqual(expect.arrayContaining(['condition', 'damage']));
+    expect(typeof rows[0].daysInStock).toBe('number');
+  });
+
   it('forbids a consignor from the discrepancies report', () => {
     return request(app.getHttpServer())
       .get('/api/reports/discrepancies')

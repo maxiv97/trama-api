@@ -8,6 +8,7 @@ import { SalesService } from '../sales/sales.service';
 import { UsersService } from '../users/users.service';
 import { CategorySales } from './category-sales';
 import { ConsignorPerformance } from './consignor-performance';
+import { DiscrepancyDetailRow } from './discrepancy-detail';
 import { ExpiringConsignment } from './expiring-consignment';
 import { PointSales } from './point-sales';
 import { ReceptionDiscrepancyReport } from './reception-discrepancies';
@@ -69,6 +70,38 @@ export class ReportsService {
       rate: receptions.length ? Math.round((withDiscrepancies / receptions.length) * 100) : null,
       byType,
     };
+  }
+
+  async receptionDiscrepancyDetail(
+    merchantId: string,
+    filters: ReportFilters = {},
+  ): Promise<DiscrepancyDetailRow[]> {
+    const garments = (await this.garments.byMerchant(merchantId)).filter((g) =>
+      garmentInScope(g, filters),
+    );
+    const garmentById = new Map(garments.map((g) => [g.id, g]));
+    const receptions = (await this.receptions.byGarmentIds([...garmentById.keys()])).filter(
+      (r) => r.discrepancies.length > 0 && dateInRange(r.receivedAt, filters),
+    );
+    const consignors = await this.users.consignorSummaries();
+    const consignorName = new Map(consignors.map((c) => [c.id, c.name]));
+    const now = Date.now();
+
+    return receptions
+      .map((reception): DiscrepancyDetailRow => {
+        const garment = garmentById.get(reception.garmentId);
+        return {
+          garmentName: garment?.name ?? '—',
+          category: garment?.category ?? '—',
+          consignorName: garment ? (consignorName.get(garment.consignorId) ?? '—') : '—',
+          receivedAt: reception.receivedAt,
+          daysInStock: garment
+            ? Math.floor((now - garment.createdAt.getTime()) / DAY_MS)
+            : 0,
+          discrepancies: reception.discrepancies,
+        };
+      })
+      .sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime());
   }
 
   async salesByPoint(merchantId: string, filters: ReportFilters = {}): Promise<PointSales[]> {
