@@ -21,6 +21,7 @@ export const MerchantTermsSchema = SchemaFactory.createForClass(MerchantTerms);
 @Schema(baseSchemaOptions)
 export class Merchant {
   @Prop({ required: true }) businessName: string;
+  @Prop() cuit?: string;
   @Prop({ type: [SalesPointSchema], default: [] }) salesPoints: SalesPoint[];
   @Prop({ type: CommissionConfigSchema, required: true }) commissionConfig: CommissionConfig;
   @Prop({ type: MerchantTermsSchema, required: true }) terms: MerchantTerms;
