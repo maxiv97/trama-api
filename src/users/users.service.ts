@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
 import { Model } from 'mongoose';
@@ -50,6 +50,7 @@ export interface CreateMerchantInput {
 }
 
 const PASSWORD_SALT_ROUNDS = 10;
+const VERIFICATION_CODE_TTL_MS = 10 * 60 * 1000;
 
 @Injectable()
 export class UsersService {
@@ -112,6 +113,42 @@ export class UsersService {
     if (existing) {
       throw new ConflictException('El email ya está registrado');
     }
+  }
+
+  // Generates a fresh verification code, stores it with a short expiry, and returns it so the caller
+  // can email it. Replacing any previous code means "resend" simply issues a new one.
+  async issueVerificationCode(userId: string): Promise<string> {
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MS);
+    await this.userModel
+      .updateOne(
+        { _id: userId },
+        { verificationCode: code, verificationCodeExpiresAt: expiresAt },
+      )
+      .exec();
+    return code;
+  }
+
+  // Confirms the code and marks the account verified, clearing the code so it cannot be reused.
+  async verifyEmail(userId: string, code: string): Promise<void> {
+    const user = await this.userModel
+      .findById(userId)
+      .select('+verificationCode +verificationCodeExpiresAt')
+      .exec();
+    if (!user || user.verified) {
+      throw new BadRequestException('No hay una verificación pendiente');
+    }
+    const expired = !user.verificationCodeExpiresAt || user.verificationCodeExpiresAt < new Date();
+    if (!user.verificationCode || expired) {
+      throw new BadRequestException('El código venció. Pedí uno nuevo.');
+    }
+    if (user.verificationCode !== code) {
+      throw new BadRequestException('El código no coincide');
+    }
+    user.verified = true;
+    user.set('verificationCode', undefined);
+    user.set('verificationCodeExpiresAt', undefined);
+    await user.save();
   }
 
   findMerchantById(id: string): Promise<MerchantDocument | null> {

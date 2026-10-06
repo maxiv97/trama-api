@@ -23,6 +23,8 @@ export class User {
   @Prop({ required: true, type: String }) accountStatus: AccountStatus;
   @Prop({ type: UserLocationSchema, required: true }) location: UserLocation;
   @Prop({ required: true, select: false }) password: string;
+  @Prop({ select: false }) verificationCode?: string;
+  @Prop({ select: false }) verificationCodeExpiresAt?: Date;
 }
 export type UserDocument = HydratedDocument<User>;
 export const UserSchema = SchemaFactory.createForClass(User);
