@@ -27,6 +27,11 @@ export class MailService {
         port,
         secure: port === 465,
         auth: { user, pass },
+        // Fail fast when the SMTP port is unreachable (e.g. a host that blocks outbound SMTP)
+        // instead of hanging on nodemailer's two-minute default.
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
       });
     } else {
       this.logger.warn('MAIL_USER/MAIL_PASS no configurados: los emails se loguean en vez de enviarse');
