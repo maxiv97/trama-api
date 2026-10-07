@@ -20,10 +20,12 @@ export class MailService {
     this.from = this.config.get<string>('MAIL_FROM') || (user ? `Trama <${user}>` : 'Trama');
 
     if (this.enabled) {
+      // Env vars arrive as strings; coerce the port so `secure` (implicit TLS on 465) is correct.
+      const port = Number(this.config.get<string>('MAIL_PORT', '465'));
       this.transporter = nodemailer.createTransport({
         host: this.config.get<string>('MAIL_HOST', 'smtp.gmail.com'),
-        port: this.config.get<number>('MAIL_PORT', 465),
-        secure: this.config.get<number>('MAIL_PORT', 465) === 465,
+        port,
+        secure: port === 465,
         auth: { user, pass },
       });
     } else {
@@ -41,5 +43,6 @@ export class MailService {
       return;
     }
     await this.transporter.sendMail({ from: this.from, to, subject, text, html });
+    this.logger.log(`Código de verificación enviado a ${to}`);
   }
 }

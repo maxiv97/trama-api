@@ -33,6 +33,9 @@ describe('Auth email verification (e2e)', () => {
   beforeAll(async () => {
     mongo = await MongoMemoryServer.create();
     process.env.MONGODB_URI = mongo.getUri();
+    // Keep the suite off real SMTP regardless of a local .env: run the mailer in mock mode.
+    process.env.MAIL_USER = '';
+    process.env.MAIL_PASS = '';
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
