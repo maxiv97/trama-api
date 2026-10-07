@@ -5,6 +5,7 @@ import { Public } from './decorators/public.decorator';
 import { LoginDto } from './dto/login.dto';
 import { RegisterConsignorDto } from './dto/register-consignor.dto';
 import { RegisterMerchantDto } from './dto/register-merchant.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 import type { SessionUser } from './session-user';
 
 @Controller('auth')
@@ -27,6 +28,16 @@ export class AuthController {
   @Post('register/merchant')
   registerMerchant(@Body() dto: RegisterMerchantDto) {
     return this.auth.registerMerchant(dto);
+  }
+
+  @Post('verify-email')
+  verifyEmail(@CurrentUser() user: SessionUser, @Body() dto: VerifyEmailDto) {
+    return this.auth.verifyEmail(user.id, dto.code);
+  }
+
+  @Post('resend-code')
+  resendCode(@CurrentUser() user: SessionUser) {
+    return this.auth.resendCode(user.id);
   }
 
   @Get('me')
