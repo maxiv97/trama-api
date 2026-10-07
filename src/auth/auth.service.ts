@@ -58,15 +58,19 @@ export class AuthService {
     return { sent: true };
   }
 
-  // Issues a code and emails it. A mail failure must not break the signup — the account already
-  // exists and the user can ask for a new code — so the error is logged and swallowed.
+  // Issues the code (fast DB write) and emails it fire-and-forget: a slow or blocked SMTP must never
+  // delay — let alone hang — the registration response. If the mail fails the account still exists
+  // and the user can ask for a new code, so the error is only logged.
   private async sendVerificationCode(user: UserDocument): Promise<void> {
-    try {
-      const code = await this.users.issueVerificationCode(user.id);
-      await this.mail.sendVerificationCode(user.email, user.name, code);
-    } catch (error) {
-      this.logger.error(`No se pudo enviar el código de verificación a ${user.email}`, error as Error);
-    }
+    const code = await this.users.issueVerificationCode(user.id);
+    void this.mail
+      .sendVerificationCode(user.email, user.name, code)
+      .catch((error) =>
+        this.logger.error(
+          `No se pudo enviar el código de verificación a ${user.email}`,
+          error as Error,
+        ),
+      );
   }
 
   private async issueSession(
