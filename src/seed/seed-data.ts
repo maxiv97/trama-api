@@ -4,6 +4,15 @@ import type {
   NotificationType,
 } from '../shared/domain/enums';
 
+// Days from today, so the still-in-stock consignment keeps a live sale deadline instead of drifting
+// into the past as real time passes (the rest of the seed is historical and stays on fixed dates).
+function daysFromNow(days: number): Date {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + days);
+  return date;
+}
+
 interface SeedTimelineEvent {
   date: Date;
   actor: 'consignor' | 'merchant' | 'system';
@@ -389,8 +398,10 @@ export const SEED_AGREEMENTS: SeedAgreement[] = [
     agreedConsignorPrice: 3000,
     agreedSalePrice: 10000,
     appliedCommission: 70,
-    agreedAt: new Date('2026-05-12'),
-    saleDeadline: new Date('2026-08-12'),
+    // gar-2 is the only garment still in stock: keep its deadline live (past the sale window, inside
+    // the grace period) so it stays a current "expiring consignment" whenever the seed runs.
+    agreedAt: daysFromNow(-100),
+    saleDeadline: daysFromNow(-10),
   },
   {
     garmentKey: 'gar-3',
