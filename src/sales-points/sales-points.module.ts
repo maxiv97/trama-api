@@ -7,5 +7,6 @@ import { SalesPointsService } from './sales-points.service';
   imports: [UsersModule],
   controllers: [SalesPointsController],
   providers: [SalesPointsService],
+  exports: [SalesPointsService],
 })
 export class SalesPointsModule {}

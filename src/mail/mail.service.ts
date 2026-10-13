@@ -4,6 +4,7 @@ import type { NotificationType } from '../shared/domain/enums';
 import {
   buildNotificationEmail,
   buildVerificationEmail,
+  EmailDetail,
   headlineForNotification,
   subjectForNotification,
 } from './templates';
@@ -59,12 +60,14 @@ export class MailService {
     type: NotificationType,
     message: string,
     ctaUrl: string,
+    details: EmailDetail[] = [],
   ): Promise<void> {
     const { html, text } = buildNotificationEmail(
       name,
       headlineForNotification(type),
       message,
       ctaUrl,
+      details,
     );
     await this.send(to, name, subjectForNotification(type), html, text);
   }

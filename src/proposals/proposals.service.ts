@@ -8,7 +8,10 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AgreementsService } from '../agreements/agreements.service';
 import { GarmentsService } from '../garments/garments.service';
+import { EmailDetail } from '../mail/templates';
+import { SalesPointsService } from '../sales-points/sales-points.service';
 import { EventActor, GarmentStatus } from '../shared/domain/enums';
+import { formatArs } from '../shared/format';
 import { canTransition, GarmentAction } from '../shared/state-machine/garment.state-machine';
 import { calculateSalePrice } from '../shared/utils/price.util';
 import { MerchantDocument } from '../users/schemas/merchant.schema';
@@ -23,6 +26,7 @@ export class ProposalsService {
     private readonly garments: GarmentsService,
     private readonly agreements: AgreementsService,
     private readonly users: UsersService,
+    private readonly salesPoints: SalesPointsService,
   ) {}
 
   async create(consignorId: string, dto: CreateProposalDto): Promise<ProposalDocument> {
@@ -80,8 +84,45 @@ export class ProposalsService {
     );
     proposal.status = 'agreed';
     await proposal.save();
-    await this.garments.applyAction(garmentId, 'ACCEPT_PROPOSAL', 'merchant', 'Propuesta aceptada');
+    const details = await this.agreementEmailDetails(
+      garment.salesPointId,
+      proposal.requestedConsignorPrice,
+      proposal.calculatedSalePrice,
+    );
+    await this.garments.applyAction(
+      garmentId,
+      'ACCEPT_PROPOSAL',
+      'merchant',
+      'Propuesta aceptada',
+      details,
+    );
     return proposal;
+  }
+
+  // Money the consignor will get, the sale price, and where/when to drop off the garment. Built
+  // defensively: a failure to resolve the sales point must never block accepting the proposal.
+  private async agreementEmailDetails(
+    salesPointId: string | undefined,
+    consignorPrice: number,
+    salePrice: number,
+  ): Promise<EmailDetail[]> {
+    const details: EmailDetail[] = [
+      { label: 'Vas a cobrar', value: formatArs(consignorPrice) },
+      { label: 'Precio de venta', value: formatArs(salePrice) },
+    ];
+    if (salesPointId) {
+      try {
+        const point = await this.salesPoints.getById(salesPointId);
+        details.push({ label: 'Dónde entregar', value: `${point.name} · ${point.address}` });
+        details.push({
+          label: 'Recepción',
+          value: `${point.receptionSchedule.days} · ${point.receptionSchedule.hours}`,
+        });
+      } catch {
+        // Sales point unavailable: keep the money details, skip the drop-off info.
+      }
+    }
+    return details;
   }
 
   async counteroffer(

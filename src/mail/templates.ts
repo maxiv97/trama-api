@@ -42,23 +42,47 @@ export function buildVerificationEmail(name: string, code: string): { html: stri
   return { html: shell(inner), text };
 }
 
-// Lifecycle notification email: a headline, the event message, and a button linking back to Trama.
+export interface EmailDetail {
+  label: string;
+  value: string;
+}
+
+// A small sand-coloured box listing label/value rows; only rendered when there are details.
+function detailsBlock(details: EmailDetail[]): string {
+  if (!details.length) return '';
+  const rows = details
+    .map(
+      (d) =>
+        `<tr><td style="padding:6px 0;font-size:13px;color:#868d83;">${d.label}</td><td style="padding:6px 0;font-size:14px;color:#1c2620;font-weight:bold;text-align:right;">${d.value}</td></tr>`,
+    )
+    .join('');
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2f6ec;border:1px solid #e3e9da;border-radius:12px;margin:0 0 22px;">
+            <tr><td style="padding:6px 16px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table></td></tr>
+          </table>`;
+}
+
+// Lifecycle notification email: a headline, the event message, an optional details box, and a button.
 export function buildNotificationEmail(
   name: string,
   headline: string,
   message: string,
   ctaUrl: string,
+  details: EmailDetail[] = [],
 ): { html: string; text: string } {
   const inner = `<tr><td style="padding:30px 28px 8px;">
           <p style="margin:0 0 6px;font-size:16px;color:#1c2620;">Hola ${name},</p>
           <p style="margin:0 0 6px;font-size:18px;font-weight:bold;color:#19281d;">${headline}</p>
           <p style="margin:0 0 22px;font-size:15px;line-height:1.5;color:#565e55;">${message}</p>
+          ${detailsBlock(details)}
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
             <a href="${ctaUrl}" style="display:inline-block;background:#2e7d54;color:#ffffff;font-size:15px;font-weight:bold;text-decoration:none;border-radius:10px;padding:13px 26px;">Ver en Trama</a>
           </td></tr></table>
         </td></tr>
         ${footerRow()}`;
-  const text = `Hola ${name},\n\n${headline}\n${message}\n\nVer en Trama: ${ctaUrl}`;
+  const detailsText = details.length
+    ? '\n' + details.map((d) => `${d.label}: ${d.value}`).join('\n') + '\n'
+    : '';
+  const text = `Hola ${name},\n\n${headline}\n${message}\n${detailsText}\nVer en Trama: ${ctaUrl}`;
   return { html: shell(inner), text };
 }
 

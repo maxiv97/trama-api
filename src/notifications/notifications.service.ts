@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { MailService } from '../mail/mail.service';
+import type { EmailDetail } from '../mail/templates';
 import type { NotificationType } from '../shared/domain/enums';
 import { UsersService } from '../users/users.service';
 import { Notification, NotificationDocument } from './schemas/notification.schema';
@@ -12,6 +13,8 @@ export interface EmitNotification {
   type: NotificationType;
   text: string;
   target: string;
+  // Extra rows shown only in the email (the in-app notification stays a one-liner).
+  emailDetails?: EmailDetail[];
 }
 
 @Injectable()
@@ -49,6 +52,7 @@ export class NotificationsService {
       input.type,
       input.text,
       `${this.appUrl}${input.target}`,
+      input.emailDetails,
     );
   }
 

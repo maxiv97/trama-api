@@ -1,9 +1,11 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { SessionUser } from '../auth/session-user';
 import { GarmentsService } from '../garments/garments.service';
+import { EmailDetail } from '../mail/templates';
 import { SaleDocument } from '../sales/schemas/sale.schema';
 import { SalesService } from '../sales/sales.service';
 import { Role } from '../shared/domain/enums';
+import { formatArs } from '../shared/format';
 import { garmentInScope, ReportFilters, dateInRange } from '../shared/report-filters';
 import { monthKey } from '../shared/utils/month.util';
 import { ConsignorSummary, MerchantSummary, UsersService } from '../users/users.service';
@@ -48,7 +50,12 @@ export class PayoutsService {
       if (garment.merchantId !== user.id) {
         throw new ForbiddenException('La prenda no pertenece al comercio');
       }
-      await this.garments.applyAction(garmentId, 'MARK_PAID_OUT', 'merchant', note);
+      const sale = await this.sales.byGarment(garmentId);
+      const details: EmailDetail[] = [];
+      if (sale) details.push({ label: 'Monto liquidado', value: formatArs(sale.consignorAmount) });
+      details.push({ label: 'Método', value: method });
+      if (dto.receiptNumber) details.push({ label: 'Comprobante', value: dto.receiptNumber });
+      await this.garments.applyAction(garmentId, 'MARK_PAID_OUT', 'merchant', note, details);
       paid.push(
         await this.sales.markPaid(garmentId, {
           paymentMethod: dto.paymentMethod,
