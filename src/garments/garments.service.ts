@@ -13,6 +13,13 @@ interface NotificationTemplate {
   text: (garment: GarmentDocument) => string;
 }
 
+const CONDITION_LABELS: Record<string, string> = {
+  new: 'Nuevo',
+  very_good: 'Muy bueno',
+  good: 'Bueno',
+  fair: 'Regular',
+};
+
 const ACTION_NOTIFICATION: Partial<Record<GarmentAction, NotificationTemplate>> = {
   COUNTER_OFFER: {
     type: 'counteroffer',
@@ -83,6 +90,12 @@ export class GarmentsService {
         type: 'proposal',
         text: `Nueva propuesta de "${garment.name}" para revisar.`,
         target: `/m/garment/${garment.id}`,
+        emailDetails: [
+          { label: 'Categoría', value: garment.category },
+          { label: 'Marca', value: garment.brand },
+          { label: 'Talle', value: garment.size },
+          { label: 'Estado', value: CONDITION_LABELS[garment.condition] ?? garment.condition },
+        ],
       });
     }
     return garment;

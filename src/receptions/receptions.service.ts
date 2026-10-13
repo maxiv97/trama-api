@@ -1,9 +1,13 @@
 import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { AgreementsService } from '../agreements/agreements.service';
 import { SessionUser } from '../auth/session-user';
 import { GarmentsService } from '../garments/garments.service';
-import { ReceptionResult } from '../shared/domain/enums';
+import { EmailDetail } from '../mail/templates';
+import { SalesPointsService } from '../sales-points/sales-points.service';
+import { ReceptionDiscrepancy, ReceptionResult } from '../shared/domain/enums';
+import { formatArs, formatDate } from '../shared/format';
 import { canTransition, GarmentAction } from '../shared/state-machine/garment.state-machine';
 import { CreateReceptionDto } from './dto/create-reception.dto';
 import { Reception, ReceptionDocument } from './schemas/reception.schema';
@@ -20,11 +24,22 @@ const RESULT_NOTE: Record<ReceptionResult, string> = {
   rejected: 'Recepción rechazada',
 };
 
+const DISCREPANCY_LABELS: Record<ReceptionDiscrepancy, string> = {
+  condition: 'Estado',
+  damage: 'Daño',
+  photo_mismatch: 'No coincide con la foto',
+  measurements: 'Medidas',
+  accessories: 'Accesorios',
+  hygiene: 'Higiene',
+};
+
 @Injectable()
 export class ReceptionsService {
   constructor(
     @InjectModel(Reception.name) private readonly receptionModel: Model<Reception>,
     private readonly garments: GarmentsService,
+    private readonly agreements: AgreementsService,
+    private readonly salesPoints: SalesPointsService,
   ) {}
 
   async create(user: SessionUser, dto: CreateReceptionDto): Promise<ReceptionDocument> {
@@ -48,8 +63,43 @@ export class ReceptionsService {
       handledBy: user.name,
     });
     await reception.save();
-    await this.garments.applyAction(dto.garmentId, action, 'merchant', RESULT_NOTE[dto.result]);
+    const details = await this.receptionEmailDetails(dto);
+    await this.garments.applyAction(dto.garmentId, action, 'merchant', RESULT_NOTE[dto.result], details);
     return reception;
+  }
+
+  // What the consignor needs to know per reception result: price/deadline if it went on sale, the
+  // observations if any, and where to pick it up if rejected. Defensive on the related lookups.
+  private async receptionEmailDetails(dto: CreateReceptionDto): Promise<EmailDetail[]> {
+    const details: EmailDetail[] = [];
+    const observations = (dto.discrepancies ?? [])
+      .map((d) => DISCREPANCY_LABELS[d] ?? d)
+      .join(', ');
+
+    if (dto.result === 'rejected') {
+      if (observations) details.push({ label: 'Motivo', value: observations });
+      try {
+        const point = await this.salesPoints.getById(dto.salesPointId);
+        details.push({ label: 'Retiralo en', value: `${point.name} · ${point.address}` });
+      } catch {
+        // Sales point unavailable: keep the reason.
+      }
+      return details;
+    }
+
+    if (dto.result === 'with_remarks' && observations) {
+      details.push({ label: 'Observaciones', value: observations });
+    }
+    try {
+      const agreement = await this.agreements.byGarment(dto.garmentId);
+      if (agreement) {
+        details.push({ label: 'Precio de exhibición', value: formatArs(agreement.agreedSalePrice) });
+        details.push({ label: 'En venta hasta', value: formatDate(agreement.saleDeadline) });
+      }
+    } catch {
+      // Agreement unavailable: keep whatever we have.
+    }
+    return details;
   }
 
   byGarment(garmentId: string): Promise<ReceptionDocument | null> {

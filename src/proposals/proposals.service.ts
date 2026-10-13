@@ -139,7 +139,11 @@ export class ProposalsService {
       consignorPrice,
       merchant.commissionConfig.consignorPercentage,
     );
-    await this.garments.applyAction(garmentId, 'COUNTER_OFFER', 'merchant', 'Contraoferta enviada');
+    await this.garments.applyAction(garmentId, 'COUNTER_OFFER', 'merchant', 'Contraoferta enviada', [
+      { label: 'Tu pedido original', value: formatArs(proposal.requestedConsignorPrice) },
+      { label: 'Contraoferta (cobrás)', value: formatArs(consignorPrice) },
+      { label: 'Precio de venta', value: formatArs(salePrice) },
+    ]);
     proposal.counteroffer = { consignorPrice, salePrice, date: new Date() };
     proposal.status = 'counteroffer';
     await proposal.save();
@@ -163,13 +167,40 @@ export class ProposalsService {
     );
     proposal.status = 'agreed';
     await proposal.save();
+    const details = await this.counterofferAcceptedDetails(
+      garment.salesPointId,
+      proposal.counteroffer.consignorPrice,
+      proposal.counteroffer.salePrice,
+    );
     await this.garments.applyAction(
       garmentId,
       'ACCEPT_COUNTEROFFER',
       'consignor',
       'Contraoferta aceptada',
+      details,
     );
     return proposal;
+  }
+
+  // For the merchant: what was agreed and where the garment will arrive. Defensive on the sales point.
+  private async counterofferAcceptedDetails(
+    salesPointId: string | undefined,
+    consignorPrice: number,
+    salePrice: number,
+  ): Promise<EmailDetail[]> {
+    const details: EmailDetail[] = [
+      { label: 'Le pagás al cedente', value: formatArs(consignorPrice) },
+      { label: 'Precio de venta', value: formatArs(salePrice) },
+    ];
+    if (salesPointId) {
+      try {
+        const point = await this.salesPoints.getById(salesPointId);
+        details.push({ label: 'La recibís en', value: `${point.name} · ${point.address}` });
+      } catch {
+        // Sales point unavailable: keep the amounts.
+      }
+    }
+    return details;
   }
 
   async reject(garmentId: string, actor: EventActor, note?: string): Promise<ProposalDocument> {
