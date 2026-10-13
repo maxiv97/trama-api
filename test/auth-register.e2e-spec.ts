@@ -44,9 +44,8 @@ describe('Auth registration (e2e)', () => {
   beforeAll(async () => {
     mongo = await MongoMemoryServer.create();
     process.env.MONGODB_URI = mongo.getUri();
-    // Keep the suite off real SMTP regardless of a local .env: run the mailer in mock mode.
-    process.env.MAIL_USER = '';
-    process.env.MAIL_PASS = '';
+    // Keep the suite off real email regardless of a local .env: run the mailer in mock mode.
+    process.env.BREVO_API_KEY = '';
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
