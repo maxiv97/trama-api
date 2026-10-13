@@ -1,53 +1,74 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
 
-// Sends transactional email. When SMTP credentials are configured it uses nodemailer; otherwise it
+const BREVO_ENDPOINT = 'https://api.brevo.com/v3/smtp/email';
+const SEND_TIMEOUT_MS = 10000;
+
+interface Sender {
+  name: string;
+  email: string;
+}
+
+// Parses "Trama <mail@dominio>" into a sender; falls back to a bare address with a default name.
+function parseSender(from: string): Sender {
+  const match = from.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
+  if (match) {
+    return { name: match[1] || 'Trama', email: match[2] };
+  }
+  return { name: 'Trama', email: from };
+}
+
+// Sends transactional email through Brevo's HTTP API (over HTTPS, so it works on hosts that block
+// outbound SMTP, e.g. Railway). Brevo allows a single verified sender address — no domain required —
+// so it can email arbitrary recipients from the project's Gmail. When no API key is configured it
 // falls back to logging the message, so local development and the demo work without credentials.
-// Nodemailer sits behind this one service so swapping the transport (another SMTP, a provider's API)
-// never touches the verification flow.
+// Brevo sits behind this one service so swapping the provider later never touches the verification flow.
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private transporter?: nodemailer.Transporter;
-  private readonly from: string;
-  private readonly enabled: boolean;
+  private readonly apiKey?: string;
+  private readonly sender: Sender;
 
   constructor(private readonly config: ConfigService) {
-    const user = this.config.get<string>('MAIL_USER');
-    const pass = this.config.get<string>('MAIL_PASS');
-    this.enabled = !!(user && pass);
-    this.from = this.config.get<string>('MAIL_FROM') || (user ? `Trama <${user}>` : 'Trama');
-
-    if (this.enabled) {
-      // Env vars arrive as strings; coerce the port so `secure` (implicit TLS on 465) is correct.
-      const port = Number(this.config.get<string>('MAIL_PORT', '465'));
-      this.transporter = nodemailer.createTransport({
-        host: this.config.get<string>('MAIL_HOST', 'smtp.gmail.com'),
-        port,
-        secure: port === 465,
-        auth: { user, pass },
-        // Fail fast when the SMTP port is unreachable (e.g. a host that blocks outbound SMTP)
-        // instead of hanging on nodemailer's two-minute default.
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 15000,
-      });
-    } else {
-      this.logger.warn('MAIL_USER/MAIL_PASS no configurados: los emails se loguean en vez de enviarse');
+    this.apiKey = this.config.get<string>('BREVO_API_KEY') || undefined;
+    this.sender = parseSender(
+      this.config.get<string>('MAIL_FROM') || 'Trama <trama.moda.circular@gmail.com>',
+    );
+    if (!this.apiKey) {
+      this.logger.warn('BREVO_API_KEY no configurada: los emails se loguean en vez de enviarse');
     }
   }
 
   async sendVerificationCode(to: string, name: string, code: string): Promise<void> {
     const subject = 'Tu código de verificación de Trama';
-    const text = `Hola ${name},\n\nTu código de verificación es ${code}. Vence en 10 minutos.\n\nSi no creaste una cuenta en Trama, podés ignorar este mensaje.`;
-    const html = `<p>Hola ${name},</p><p>Tu código de verificación es <strong style="font-size:20px;letter-spacing:3px">${code}</strong>.</p><p>Vence en 10 minutos.</p><p style="color:#6b7280;font-size:13px">Si no creaste una cuenta en Trama, podés ignorar este mensaje.</p>`;
+    const textContent = `Hola ${name},\n\nTu código de verificación es ${code}. Vence en 10 minutos.\n\nSi no creaste una cuenta en Trama, podés ignorar este mensaje.`;
+    const htmlContent = `<p>Hola ${name},</p><p>Tu código de verificación es <strong style="font-size:20px;letter-spacing:3px">${code}</strong>.</p><p>Vence en 10 minutos.</p><p style="color:#6b7280;font-size:13px">Si no creaste una cuenta en Trama, podés ignorar este mensaje.</p>`;
 
-    if (!this.enabled || !this.transporter) {
+    if (!this.apiKey) {
       this.logger.log(`[MOCK MAIL] Código de verificación para ${to}: ${code}`);
       return;
     }
-    await this.transporter.sendMail({ from: this.from, to, subject, text, html });
+
+    const response = await fetch(BREVO_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'api-key': this.apiKey,
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify({
+        sender: this.sender,
+        to: [{ email: to, name }],
+        subject,
+        htmlContent,
+        textContent,
+      }),
+      signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      throw new Error(`Brevo respondió ${response.status}: ${detail.slice(0, 200)}`);
+    }
     this.logger.log(`Código de verificación enviado a ${to}`);
   }
 }
