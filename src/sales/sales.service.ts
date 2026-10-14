@@ -9,9 +9,12 @@ import { Model } from 'mongoose';
 import { AgreementsService } from '../agreements/agreements.service';
 import { SessionUser } from '../auth/session-user';
 import { GarmentsService } from '../garments/garments.service';
+import { EmailDetail } from '../mail/templates';
 import { PaymentMethod } from '../shared/domain/enums';
+import { formatArs } from '../shared/format';
 import { canTransition } from '../shared/state-machine/garment.state-machine';
 import { calculateConsignorAmount } from '../shared/utils/price.util';
+import { UsersService } from '../users/users.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { Sale, SaleDocument } from './schemas/sale.schema';
 
@@ -26,6 +29,7 @@ export class SalesService {
     @InjectModel(Sale.name) private readonly saleModel: Model<Sale>,
     private readonly garments: GarmentsService,
     private readonly agreements: AgreementsService,
+    private readonly users: UsersService,
   ) {}
 
   async create(user: SessionUser, dto: CreateSaleDto): Promise<SaleDocument> {
@@ -51,8 +55,46 @@ export class SalesService {
       merchantCommission,
     });
     await sale.save();
-    await this.garments.applyAction(dto.garmentId, 'REGISTER_SALE', 'merchant', 'Venta registrada');
+    const details = await this.saleEmailDetails(
+      garment.merchantId,
+      consignorAmount,
+      dto.actualSalePrice,
+    );
+    await this.garments.applyAction(
+      dto.garmentId,
+      'REGISTER_SALE',
+      'merchant',
+      'Venta registrada',
+      details,
+    );
     return sale;
+  }
+
+  // What the consignor earns, the sale price, and when they get paid. Built defensively so a failure
+  // to resolve the merchant's payout day never blocks registering the sale.
+  private async saleEmailDetails(
+    merchantId: string | undefined,
+    consignorAmount: number,
+    salePrice: number,
+  ): Promise<EmailDetail[]> {
+    const details: EmailDetail[] = [
+      { label: 'Vas a cobrar', value: formatArs(consignorAmount) },
+      { label: 'Precio de venta', value: formatArs(salePrice) },
+    ];
+    if (merchantId) {
+      try {
+        const merchant = await this.users.findMerchantById(merchantId);
+        if (merchant) {
+          details.push({
+            label: 'Lo cobrás',
+            value: `el día ${merchant.terms.payoutDay} de cada mes`,
+          });
+        }
+      } catch {
+        // Merchant unavailable: keep the amounts, skip the payout-day line.
+      }
+    }
+    return details;
   }
 
   byGarment(garmentId: string): Promise<SaleDocument | null> {

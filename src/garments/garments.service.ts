@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { EventActor, NotificationType } from '../shared/domain/enums';
 import { canTransition, GarmentAction, transition } from '../shared/state-machine/garment.state-machine';
+import type { EmailDetail } from '../mail/templates';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateGarmentDto } from './dto/create-garment.dto';
 import { Garment, GarmentDocument } from './schemas/garment.schema';
@@ -11,6 +12,13 @@ interface NotificationTemplate {
   type: NotificationType;
   text: (garment: GarmentDocument) => string;
 }
+
+const CONDITION_LABELS: Record<string, string> = {
+  new: 'Nuevo',
+  very_good: 'Muy bueno',
+  good: 'Bueno',
+  fair: 'Regular',
+};
 
 const ACTION_NOTIFICATION: Partial<Record<GarmentAction, NotificationTemplate>> = {
   COUNTER_OFFER: {
@@ -82,6 +90,13 @@ export class GarmentsService {
         type: 'proposal',
         text: `Nueva propuesta de "${garment.name}" para revisar.`,
         target: `/m/garment/${garment.id}`,
+        garmentStatus: garment.status,
+        emailDetails: [
+          { label: 'Categoría', value: garment.category },
+          { label: 'Marca', value: garment.brand },
+          { label: 'Talle', value: garment.size },
+          { label: 'Estado', value: CONDITION_LABELS[garment.condition] ?? garment.condition },
+        ],
       });
     }
     return garment;
@@ -108,6 +123,7 @@ export class GarmentsService {
     action: GarmentAction,
     actor: EventActor,
     note?: string,
+    emailDetails?: EmailDetail[],
   ): Promise<GarmentDocument> {
     const garment = await this.getByIdOrFail(id);
     if (!canTransition(garment.status, action)) {
@@ -117,7 +133,7 @@ export class GarmentsService {
     garment.status = status;
     garment.timeline.push({ date: new Date(), actor, status, note });
     await garment.save();
-    await this.notify(garment, action, actor);
+    await this.notify(garment, action, actor, emailDetails);
     return garment;
   }
 
@@ -125,6 +141,7 @@ export class GarmentsService {
     garment: GarmentDocument,
     action: GarmentAction,
     actor: EventActor,
+    emailDetails?: EmailDetail[],
   ): Promise<void> {
     const template = ACTION_NOTIFICATION[action];
     if (!template) return;
@@ -136,6 +153,8 @@ export class GarmentsService {
       type: template.type,
       text: template.text(garment),
       target: `${base}/garment/${garment.id}`,
+      emailDetails,
+      garmentStatus: garment.status,
     });
   }
 }
