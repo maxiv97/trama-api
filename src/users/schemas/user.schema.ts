@@ -5,6 +5,11 @@ import { baseSchemaOptions } from '../../shared/mongoose/schema-options';
 
 @Schema({ _id: false })
 export class UserLocation {
+  // Street address is optional on the base schema (merchants locate through their sales points);
+  // the consignor registration requires street and number.
+  @Prop() street?: string;
+  @Prop() number?: string;
+  @Prop() unit?: string;
   @Prop({ required: true }) neighborhood: string;
   @Prop({ required: true }) city: string;
   @Prop() lat?: number;
