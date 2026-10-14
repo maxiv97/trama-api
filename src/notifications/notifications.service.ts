@@ -4,7 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { MailService } from '../mail/mail.service';
 import type { EmailDetail } from '../mail/templates';
-import type { NotificationType } from '../shared/domain/enums';
+import type { GarmentStatus, NotificationType } from '../shared/domain/enums';
 import { UsersService } from '../users/users.service';
 import { Notification, NotificationDocument } from './schemas/notification.schema';
 
@@ -15,6 +15,8 @@ export interface EmitNotification {
   target: string;
   // Extra rows shown only in the email (the in-app notification stays a one-liner).
   emailDetails?: EmailDetail[];
+  // Garment status at this point, so the email can render the lifecycle tracker.
+  garmentStatus?: GarmentStatus;
 }
 
 @Injectable()
@@ -53,6 +55,7 @@ export class NotificationsService {
       input.text,
       `${this.appUrl}${input.target}`,
       input.emailDetails,
+      input.garmentStatus,
     );
   }
 

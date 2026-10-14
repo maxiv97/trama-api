@@ -90,6 +90,7 @@ export class GarmentsService {
         type: 'proposal',
         text: `Nueva propuesta de "${garment.name}" para revisar.`,
         target: `/m/garment/${garment.id}`,
+        garmentStatus: garment.status,
         emailDetails: [
           { label: 'Categoría', value: garment.category },
           { label: 'Marca', value: garment.brand },
@@ -153,6 +154,7 @@ export class GarmentsService {
       text: template.text(garment),
       target: `${base}/garment/${garment.id}`,
       emailDetails,
+      garmentStatus: garment.status,
     });
   }
 }

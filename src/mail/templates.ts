@@ -1,4 +1,47 @@
-import type { NotificationType } from '../shared/domain/enums';
+import type { GarmentStatus, NotificationType } from '../shared/domain/enums';
+
+// The seven lifecycle milestones shown in the email tracker, matching the app's ProgressTracker.
+const STEPS = ['Cargada', 'En revisión', 'Acordada', 'Recepcionada', 'En stock', 'Vendida', 'Liquidada'];
+
+// Current milestone per garment status. Terminal/negative states (rejected, no_agreement, cancelled)
+// map to nothing, so those emails show no tracker.
+const STATUS_STEP: Partial<Record<GarmentStatus, number>> = {
+  submitted: 0,
+  under_review: 1,
+  counteroffer: 1,
+  agreed: 2,
+  in_stock: 4,
+  with_remarks: 4,
+  sold: 5,
+  paid_out: 6,
+};
+
+export function stepForStatus(status: GarmentStatus): number | null {
+  return STATUS_STEP[status] ?? null;
+}
+
+// Vertical timeline: each milestone with its label; done in green, current highlighted, pending grey.
+function trackerBlock(current: number): string {
+  const GREEN = '#2e7d54';
+  const GREY = '#dde4d2';
+  const DARK = '#19281d';
+  let rows = '';
+  for (let i = 0; i < STEPS.length; i++) {
+    const done = i < current;
+    const cur = i === current;
+    const dot = cur
+      ? `<div style="width:14px;height:14px;background:${DARK};border:3px solid #c7e3cd;border-radius:50%;font-size:0;line-height:0;">&nbsp;</div>`
+      : `<div style="width:${done ? 12 : 10}px;height:${done ? 12 : 10}px;background:${done ? GREEN : GREY};border-radius:50%;font-size:0;line-height:0;">&nbsp;</div>`;
+    const label = cur
+      ? `<span style="display:inline-block;background:#dceddf;color:${DARK};font-weight:bold;font-size:14px;padding:4px 12px;border-radius:999px;">${STEPS[i]}</span>`
+      : `<span style="font-size:14px;color:${done ? '#3c463d' : '#9ca398'};">${STEPS[i]}</span>`;
+    rows += `<tr><td width="30" align="center" valign="middle">${dot}</td><td valign="middle" style="padding:3px 0;">${label}</td></tr>`;
+    if (i < STEPS.length - 1) {
+      rows += `<tr><td width="30" align="center" valign="middle" style="padding:0;"><div style="width:2px;height:12px;margin:0 auto;background:${i < current ? GREEN : GREY};font-size:0;line-height:0;">&nbsp;</div></td><td></td></tr>`;
+    }
+  }
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 20px;">${rows}</table>`;
+}
 
 // Shared branded shell: dark header with the Trama wordmark, a white card body, and a footer.
 // Table-based with inline styles so it renders consistently across mail clients (Gmail/Outlook/mobile).
@@ -61,28 +104,33 @@ function detailsBlock(details: EmailDetail[]): string {
           </table>`;
 }
 
-// Lifecycle notification email: a headline, the event message, an optional details box, and a button.
+// Lifecycle notification email: a headline, the event message, an optional progress tracker and
+// details box, and a button.
 export function buildNotificationEmail(
   name: string,
   headline: string,
   message: string,
   ctaUrl: string,
   details: EmailDetail[] = [],
+  currentStep: number | null = null,
 ): { html: string; text: string } {
+  const tracker = currentStep === null ? '' : trackerBlock(currentStep);
   const inner = `<tr><td style="padding:30px 28px 8px;">
           <p style="margin:0 0 6px;font-size:16px;color:#1c2620;">Hola ${name},</p>
           <p style="margin:0 0 6px;font-size:18px;font-weight:bold;color:#19281d;">${headline}</p>
-          <p style="margin:0 0 22px;font-size:15px;line-height:1.5;color:#565e55;">${message}</p>
+          <p style="margin:0 0 ${currentStep === null ? '22' : '10'}px;font-size:15px;line-height:1.5;color:#565e55;">${message}</p>
+          ${tracker}
           ${detailsBlock(details)}
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
             <a href="${ctaUrl}" style="display:inline-block;background:#2e7d54;color:#ffffff;font-size:15px;font-weight:bold;text-decoration:none;border-radius:10px;padding:13px 26px;">Ver en Trama</a>
           </td></tr></table>
         </td></tr>
         ${footerRow()}`;
+  const stageText = currentStep === null ? '' : `\nEstado: ${STEPS[currentStep]}\n`;
   const detailsText = details.length
     ? '\n' + details.map((d) => `${d.label}: ${d.value}`).join('\n') + '\n'
     : '';
-  const text = `Hola ${name},\n\n${headline}\n${message}\n${detailsText}\nVer en Trama: ${ctaUrl}`;
+  const text = `Hola ${name},\n\n${headline}\n${message}\n${stageText}${detailsText}\nVer en Trama: ${ctaUrl}`;
   return { html: shell(inner), text };
 }
 

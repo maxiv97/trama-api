@@ -1,11 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { NotificationType } from '../shared/domain/enums';
+import type { GarmentStatus, NotificationType } from '../shared/domain/enums';
 import {
   buildNotificationEmail,
   buildVerificationEmail,
   EmailDetail,
   headlineForNotification,
+  stepForStatus,
   subjectForNotification,
 } from './templates';
 
@@ -61,6 +62,7 @@ export class MailService {
     message: string,
     ctaUrl: string,
     details: EmailDetail[] = [],
+    garmentStatus?: GarmentStatus,
   ): Promise<void> {
     const { html, text } = buildNotificationEmail(
       name,
@@ -68,6 +70,7 @@ export class MailService {
       message,
       ctaUrl,
       details,
+      garmentStatus ? stepForStatus(garmentStatus) : null,
     );
     await this.send(to, name, subjectForNotification(type), html, text);
   }
