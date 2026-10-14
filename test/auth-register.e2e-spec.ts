@@ -6,12 +6,13 @@ import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 
 const consignorPayload = {
-  name: 'Franco Ledesma',
+  firstName: 'Franco',
+  lastName: 'Ledesma',
   email: 'franco@example.com',
   phone: '351-4000001',
   password: 'secret123',
   dni: '30.555.666',
-  location: { neighborhood: 'Alberdi', city: 'Córdoba' },
+  location: { street: 'Caseros', number: '450', neighborhood: 'Alberdi', city: 'Córdoba' },
 };
 
 const merchantPayload = {

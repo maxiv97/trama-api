@@ -20,7 +20,8 @@ export interface ConsignorSummary {
 }
 
 export interface CreateConsignorInput {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone: string;
   password: string;
@@ -72,7 +73,10 @@ export class UsersService {
     await this.assertEmailAvailable(input.email);
     const password = await bcrypt.hash(input.password, PASSWORD_SALT_ROUNDS);
     return this.consignorModel.create({
-      name: input.name,
+      // `name` stays the canonical display value (session, emails, UI); first/last are stored too.
+      name: `${input.firstName} ${input.lastName}`,
+      firstName: input.firstName,
+      lastName: input.lastName,
       email: input.email,
       phone: input.phone,
       verified: false,

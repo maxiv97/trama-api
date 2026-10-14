@@ -9,12 +9,13 @@ import { AppModule } from './../src/app.module';
 import { User } from './../src/users/schemas/user.schema';
 
 const consignorPayload = {
-  name: 'Franco Ledesma',
+  firstName: 'Franco',
+  lastName: 'Ledesma',
   email: 'franco.verify@example.com',
   phone: '351-4000001',
   password: 'secret123',
   dni: '30.555.666',
-  location: { neighborhood: 'Alberdi', city: 'Córdoba' },
+  location: { street: 'Caseros', number: '450', neighborhood: 'Alberdi', city: 'Córdoba' },
 };
 
 describe('Auth email verification (e2e)', () => {
