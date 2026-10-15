@@ -6,10 +6,22 @@ import type {
   ReceptionDiscrepancy,
   ReceptionResult,
 } from '../shared/domain/enums';
-import {
-  GARMENT_CATEGORY_LABELS,
-  GarmentCategory,
-} from '../shared/domain/garment-categories';
+import type { GarmentCategory as AnyGarmentCategory } from '../shared/domain/garment-categories';
+
+// The demo dataset only covers the original seven categories (each needs a
+// hand-picked photo pool and a pricing profile below); the full catalog lives
+// in shared/domain/garment-categories.ts.
+const GARMENT_CATEGORY_LABELS = [
+  'Camperas y abrigos',
+  'Vestidos',
+  'Pantalones',
+  'Remeras y tops',
+  'Camisas y blusas',
+  'Calzado',
+  'Accesorios',
+] as const satisfies readonly AnyGarmentCategory[];
+
+type GarmentCategory = (typeof GARMENT_CATEGORY_LABELS)[number];
 
 // ---------------------------------------------------------------------------
 // A large, deterministic dataset for one demo merchant: ~100 garments spread
