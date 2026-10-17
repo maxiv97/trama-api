@@ -24,7 +24,7 @@ export class Garment {
   @Prop({ required: true }) color: string;
   @Prop({ required: true }) season: string;
   @Prop({ required: true, type: String }) condition: GarmentCondition;
-  @Prop({ required: true }) description: string;
+  @Prop({ default: '' }) description: string;
   @Prop({ type: [String], default: [] }) photos: string[];
   @Prop() video?: string;
   @Prop({ required: true, type: String }) status: GarmentStatus;

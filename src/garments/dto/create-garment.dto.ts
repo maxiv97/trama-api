@@ -14,7 +14,7 @@ export class CreateGarmentDto {
   @IsString() @MinLength(1) color: string;
   @IsString() @MinLength(1) season: string;
   @IsIn(CONDITIONS) condition: GarmentCondition;
-  @IsString() description: string;
+  @IsOptional() @IsString() description?: string;
   @IsArray() @IsString({ each: true }) photos: string[];
   @IsOptional() @IsString() video?: string;
   @IsString() @MinLength(1) merchantId: string;
