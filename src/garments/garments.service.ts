@@ -1,9 +1,15 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { EventActor, NotificationType } from '../shared/domain/enums';
 import { canTransition, GarmentAction, transition } from '../shared/state-machine/garment.state-machine';
 import type { EmailDetail } from '../mail/templates';
+import { CategoriesService } from '../categories/categories.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateGarmentDto } from './dto/create-garment.dto';
 import { Garment, GarmentDocument } from './schemas/garment.schema';
@@ -68,9 +74,14 @@ export class GarmentsService {
   constructor(
     @InjectModel(Garment.name) private readonly garmentModel: Model<Garment>,
     private readonly notifications: NotificationsService,
+    private readonly categories: CategoriesService,
   ) {}
 
   async create(consignorId: string, dto: CreateGarmentDto): Promise<GarmentDocument> {
+    const validCategory = await this.categories.isValidForMerchant(dto.category, dto.merchantId);
+    if (!validCategory) {
+      throw new BadRequestException(`La categoría "${dto.category}" no está disponible para este comercio.`);
+    }
     const createdAt = new Date();
     const status = transition('submitted', 'SUBMIT_PROPOSAL');
     const garment = new this.garmentModel({

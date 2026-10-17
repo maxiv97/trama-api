@@ -8,6 +8,7 @@ import { AgreementsModule } from './agreements/agreements.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
+import { CategoriesModule } from './categories/categories.module';
 import { ConsignorsModule } from './consignors/consignors.module';
 import { GarmentsModule } from './garments/garments.module';
 import { MerchantsModule } from './merchants/merchants.module';
@@ -33,6 +34,7 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     AuthModule,
     GarmentsModule,
+    CategoriesModule,
     AgreementsModule,
     ProposalsModule,
     ReceptionsModule,

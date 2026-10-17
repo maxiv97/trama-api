@@ -25,6 +25,10 @@ export class Merchant {
   @Prop({ type: [SalesPointSchema], default: [] }) salesPoints: SalesPoint[];
   @Prop({ type: CommissionConfigSchema, required: true }) commissionConfig: CommissionConfig;
   @Prop({ type: MerchantTermsSchema, required: true }) terms: MerchantTerms;
+
+  // Categorías base que este comercio decidió no ofrecer (opt-out). No afecta al
+  // catálogo canónico ni a otros comercios.
+  @Prop({ type: [String], default: [] }) hiddenCategoryLabels: string[];
 }
 export type MerchantDocument = HydratedDocument<Merchant>;
 export const MerchantSchema = SchemaFactory.createForClass(Merchant);

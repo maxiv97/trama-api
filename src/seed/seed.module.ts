@@ -15,12 +15,14 @@ import {
   ReceptionSchema,
 } from '../receptions/schemas/reception.schema';
 import { Sale, SaleSchema } from '../sales/schemas/sale.schema';
+import { CategoriesModule } from '../categories/categories.module';
 import { UsersModule } from '../users/users.module';
 import { SeedService } from './seed.service';
 
 @Module({
   imports: [
     UsersModule,
+    CategoriesModule,
     MongooseModule.forFeature([
       { name: Garment.name, schema: GarmentSchema },
       { name: Proposal.name, schema: ProposalSchema },

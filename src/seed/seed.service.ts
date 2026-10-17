@@ -8,6 +8,7 @@ import { Notification } from '../notifications/schemas/notification.schema';
 import { Proposal } from '../proposals/schemas/proposal.schema';
 import { Reception } from '../receptions/schemas/reception.schema';
 import { Sale } from '../sales/schemas/sale.schema';
+import { CategoriesService } from '../categories/categories.service';
 import { Consignor } from '../users/schemas/consignor.schema';
 import { Merchant, MerchantDocument } from '../users/schemas/merchant.schema';
 import { User } from '../users/schemas/user.schema';
@@ -56,9 +57,11 @@ export class SeedService {
     private readonly receptionModel: Model<Reception>,
     @InjectModel(Notification.name)
     private readonly notificationModel: Model<Notification>,
+    private readonly categories: CategoriesService,
   ) {}
 
   async seedUsers(): Promise<SeedRefs> {
+    await this.categories.seedBase();
     await this.userModel.deleteMany({});
     const password = await bcrypt.hash(SEED_PASSWORD, 10);
     const userByKey = new Map<string, string>();
@@ -256,6 +259,7 @@ export class SeedService {
    * never touches the unrelated data from seedAll().
    */
   async seedDemoMerchant(): Promise<void> {
+    await this.categories.seedBase();
     await this.clearPriorDemoRun();
 
     const password = await bcrypt.hash(SEED_PASSWORD, 10);
