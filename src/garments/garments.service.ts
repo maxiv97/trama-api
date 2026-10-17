@@ -1,12 +1,27 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { EventActor, NotificationType } from '../shared/domain/enums';
+import { EventActor, GarmentCondition, NotificationType } from '../shared/domain/enums';
+
+export interface EditableGarmentFields {
+  name: string;
+  category: string;
+  subcategory?: string;
+  brand: string;
+  size: string;
+  color: string;
+  season: string;
+  condition: GarmentCondition;
+  description?: string;
+  photos: string[];
+  video?: string;
+}
 import { canTransition, GarmentAction, transition } from '../shared/state-machine/garment.state-machine';
 import type { EmailDetail } from '../mail/templates';
 import { CategoriesService } from '../categories/categories.service';
@@ -118,6 +133,46 @@ export class GarmentsService {
     if (!garment) {
       throw new NotFoundException(`Prenda no encontrada: ${id}`);
     }
+    return garment;
+  }
+
+  // Edición del cedente mientras la consignación está en revisión (antes de que
+  // el comercio la acepte o contraoferte). No cambia el comercio.
+  async editDraft(
+    id: string,
+    consignorId: string,
+    fields: EditableGarmentFields,
+  ): Promise<GarmentDocument> {
+    const garment = await this.getByIdOrFail(id);
+    if (garment.consignorId !== consignorId) {
+      throw new ForbiddenException('La prenda no te pertenece');
+    }
+    if (garment.status !== 'under_review') {
+      throw new BadRequestException(
+        'Solo podés editar la consignación mientras el comercio no la haya revisado.',
+      );
+    }
+    const validCategory = await this.categories.isValidForMerchant(
+      fields.category,
+      garment.merchantId,
+    );
+    if (!validCategory) {
+      throw new BadRequestException(
+        `La categoría "${fields.category}" no está disponible para este comercio.`,
+      );
+    }
+    garment.name = fields.name;
+    garment.category = fields.category;
+    garment.subcategory = fields.subcategory;
+    garment.brand = fields.brand;
+    garment.size = fields.size;
+    garment.color = fields.color;
+    garment.season = fields.season;
+    garment.condition = fields.condition;
+    garment.description = fields.description ?? '';
+    garment.photos = fields.photos;
+    garment.video = fields.video;
+    await garment.save();
     return garment;
   }
 

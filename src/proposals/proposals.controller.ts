@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { SessionUser } from '../auth/session-user';
 import { CounterofferDto } from './dto/counteroffer.dto';
 import { CreateProposalDto } from './dto/create-proposal.dto';
+import { UpdateDraftDto } from './dto/update-draft.dto';
 import { ProposalsService } from './proposals.service';
 
 @Controller()
@@ -19,6 +20,16 @@ export class ProposalsController {
   @Get('garments/:garmentId/proposal')
   byGarment(@Param('garmentId') garmentId: string) {
     return this.proposals.byGarment(garmentId);
+  }
+
+  @Patch('garments/:garmentId/draft')
+  @Roles('consignor')
+  updateDraft(
+    @CurrentUser() user: SessionUser,
+    @Param('garmentId') garmentId: string,
+    @Body() dto: UpdateDraftDto,
+  ) {
+    return this.proposals.updateDraft(garmentId, user.id, dto);
   }
 
   @Get('proposals')

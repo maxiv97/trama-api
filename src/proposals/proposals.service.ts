@@ -17,6 +17,7 @@ import { calculateSalePrice } from '../shared/utils/price.util';
 import { MerchantDocument } from '../users/schemas/merchant.schema';
 import { UsersService } from '../users/users.service';
 import { CreateProposalDto } from './dto/create-proposal.dto';
+import { UpdateDraftDto } from './dto/update-draft.dto';
 import { Proposal, ProposalDocument } from './schemas/proposal.schema';
 
 @Injectable()
@@ -46,6 +47,37 @@ export class ProposalsService {
       status: 'under_review',
       createdAt: new Date(),
     });
+    await proposal.save();
+    return proposal;
+  }
+
+  // Edición del cedente en revisión: actualiza la prenda (vía GarmentsService,
+  // que valida dueño/estado/categoría) y recalcula el precio de la propuesta.
+  async updateDraft(
+    garmentId: string,
+    consignorId: string,
+    dto: UpdateDraftDto,
+  ): Promise<ProposalDocument> {
+    const garment = await this.garments.editDraft(garmentId, consignorId, {
+      name: dto.name,
+      category: dto.category,
+      subcategory: dto.subcategory,
+      brand: dto.brand,
+      size: dto.size,
+      color: dto.color,
+      season: dto.season,
+      condition: dto.condition,
+      description: dto.description,
+      photos: dto.photos,
+      video: dto.video,
+    });
+    const merchant = await this.merchantForGarment(garment.merchantId);
+    const proposal = await this.proposalOrFail(garmentId);
+    proposal.requestedConsignorPrice = dto.requestedConsignorPrice;
+    proposal.calculatedSalePrice = calculateSalePrice(
+      dto.requestedConsignorPrice,
+      merchant.commissionConfig.consignorPercentage,
+    );
     await proposal.save();
     return proposal;
   }
