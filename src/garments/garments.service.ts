@@ -176,12 +176,15 @@ export class GarmentsService {
     return garment;
   }
 
+  // Los listados solo muestran, a lo sumo, una miniatura (primera foto). Recortar
+  // a la primera con $slice evita mandar todas las fotos base64 de cada prenda,
+  // que inflaban los payloads. El detalle (getByIdOrFail) devuelve todas.
   byConsignor(consignorId: string): Promise<GarmentDocument[]> {
-    return this.garmentModel.find({ consignorId }).exec();
+    return this.garmentModel.find({ consignorId }, { photos: { $slice: 1 } }).exec();
   }
 
   byMerchant(merchantId: string): Promise<GarmentDocument[]> {
-    return this.garmentModel.find({ merchantId }).exec();
+    return this.garmentModel.find({ merchantId }, { photos: { $slice: 1 } }).exec();
   }
 
   async applyAction(

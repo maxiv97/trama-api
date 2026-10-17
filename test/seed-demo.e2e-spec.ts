@@ -91,7 +91,7 @@ describe('Demo merchant seed (e2e)', () => {
     expect(consignors.body).toHaveLength(DEMO_CONSIGNORS.length);
   });
 
-  it('produces ~100 garments covering every GarmentStatus, each with 2+ photos', async () => {
+  it('produces ~100 garments covering every GarmentStatus, with photos', async () => {
     const res = await request(app.getHttpServer())
       .get('/api/garments')
       .set(auth(merchantToken))
@@ -106,11 +106,21 @@ describe('Demo merchant seed (e2e)', () => {
       expect(statusesPresent.has(status)).toBe(true);
     }
 
+    // El listado devuelve solo la miniatura (primera foto) por performance.
     for (const garment of garments) {
-      expect(garment.photos.length).toBeGreaterThanOrEqual(2);
-      for (const photo of garment.photos) {
-        expect(photo).toMatch(/^https:\/\/images\.unsplash\.com\//);
-      }
+      expect(garment.photos).toHaveLength(1);
+      expect(garment.photos[0]).toMatch(/^https:\/\/images\.unsplash\.com\//);
+    }
+
+    // El detalle sí trae todas las fotos: el seed crea 2+ por prenda.
+    const detail = await request(app.getHttpServer())
+      .get(`/api/garments/${garments[0].id}`)
+      .set(auth(merchantToken))
+      .expect(200);
+    const detailBody = detail.body as GarmentBody;
+    expect(detailBody.photos.length).toBeGreaterThanOrEqual(2);
+    for (const photo of detailBody.photos) {
+      expect(photo).toMatch(/^https:\/\/images\.unsplash\.com\//);
     }
   });
 
