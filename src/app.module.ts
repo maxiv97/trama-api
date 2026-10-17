@@ -14,6 +14,7 @@ import { GarmentsModule } from './garments/garments.module';
 import { MerchantsModule } from './merchants/merchants.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PayoutsModule } from './payouts/payouts.module';
+import { PlatformConfigModule } from './platform-config/platform-config.module';
 import { ProposalsModule } from './proposals/proposals.module';
 import { ReceptionsModule } from './receptions/receptions.module';
 import { ReportsModule } from './reports/reports.module';
@@ -45,6 +46,7 @@ import { UsersModule } from './users/users.module';
     PayoutsModule,
     ReportsModule,
     NotificationsModule,
+    PlatformConfigModule,
     SeedModule,
   ],
   controllers: [AppController],
