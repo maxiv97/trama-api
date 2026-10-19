@@ -4,6 +4,7 @@ import {
   Agreement,
   AgreementSchema,
 } from '../agreements/schemas/agreement.schema';
+import { Counter, CounterSchema } from '../garments/schemas/counter.schema';
 import { Garment, GarmentSchema } from '../garments/schemas/garment.schema';
 import {
   Notification,
@@ -25,6 +26,7 @@ import { SeedService } from './seed.service';
     CategoriesModule,
     MongooseModule.forFeature([
       { name: Garment.name, schema: GarmentSchema },
+      { name: Counter.name, schema: CounterSchema },
       { name: Proposal.name, schema: ProposalSchema },
       { name: Agreement.name, schema: AgreementSchema },
       { name: Sale.name, schema: SaleSchema },

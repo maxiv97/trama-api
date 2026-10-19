@@ -16,6 +16,8 @@ export const GarmentEventSchema = SchemaFactory.createForClass(GarmentEvent);
 export class Garment {
   @Prop({ required: true }) consignorId: string;
   @Prop() merchantId?: string;
+  // Código legible para que el comercio identifique/busque la prenda (TRA-00001).
+  @Prop({ unique: true, sparse: true }) code?: string;
   @Prop({ required: true }) name: string;
   @Prop({ required: true }) category: string;
   @Prop() subcategory?: string;

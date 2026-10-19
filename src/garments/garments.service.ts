@@ -27,6 +27,7 @@ import type { EmailDetail } from '../mail/templates';
 import { CategoriesService } from '../categories/categories.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateGarmentDto } from './dto/create-garment.dto';
+import { Counter } from './schemas/counter.schema';
 import { Garment, GarmentDocument } from './schemas/garment.schema';
 
 interface NotificationTemplate {
@@ -88,9 +89,18 @@ const ACTION_NOTIFICATION: Partial<Record<GarmentAction, NotificationTemplate>> 
 export class GarmentsService {
   constructor(
     @InjectModel(Garment.name) private readonly garmentModel: Model<Garment>,
+    @InjectModel(Counter.name) private readonly counterModel: Model<Counter>,
     private readonly notifications: NotificationsService,
     private readonly categories: CategoriesService,
   ) {}
+
+  // Código legible y correlativo (TRA-00001) para que el comercio identifique la prenda.
+  async nextCode(): Promise<string> {
+    const counter = await this.counterModel
+      .findOneAndUpdate({ _id: 'garment' }, { $inc: { seq: 1 } }, { upsert: true, new: true })
+      .exec();
+    return `TRA-${String(counter.seq).padStart(5, '0')}`;
+  }
 
   async create(consignorId: string, dto: CreateGarmentDto): Promise<GarmentDocument> {
     const validCategory = await this.categories.isValidForMerchant(dto.category, dto.merchantId);
@@ -102,6 +112,7 @@ export class GarmentsService {
     const garment = new this.garmentModel({
       ...dto,
       consignorId,
+      code: await this.nextCode(),
       status,
       createdAt,
       timeline: [

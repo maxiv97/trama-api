@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
 import { Model } from 'mongoose';
 import { Agreement } from '../agreements/schemas/agreement.schema';
+import { Counter } from '../garments/schemas/counter.schema';
 import { Garment } from '../garments/schemas/garment.schema';
 import { Notification } from '../notifications/schemas/notification.schema';
 import { Proposal } from '../proposals/schemas/proposal.schema';
@@ -49,6 +50,7 @@ export class SeedService {
     private readonly consignorModel: Model<Consignor>,
     @InjectModel(Merchant.name) private readonly merchantModel: Model<Merchant>,
     @InjectModel(Garment.name) private readonly garmentModel: Model<Garment>,
+    @InjectModel(Counter.name) private readonly counterModel: Model<Counter>,
     @InjectModel(Proposal.name) private readonly proposalModel: Model<Proposal>,
     @InjectModel(Agreement.name)
     private readonly agreementModel: Model<Agreement>,
@@ -244,6 +246,7 @@ export class SeedService {
       ) as unknown as Notification[],
     );
 
+    await this.assignGarmentCodes();
     this.logger.log(
       `Seeded ${SEED_GARMENTS.length} garments, ${SEED_PROPOSALS.length} proposals, ${SEED_AGREEMENTS.length} agreements, ${SEED_SALES.length} sales, ${SEED_NOTIFICATIONS.length} notifications`,
     );
@@ -394,12 +397,30 @@ export class SeedService {
       );
     }
 
+    await this.assignGarmentCodes();
     this.logger.log(
       `Seeded demo merchant "Segunda Vuelta" — ${DEMO_CONSIGNORS.length} consignors, ` +
         `${dataset.garments.length} garments, ${dataset.proposals.length} proposals, ` +
         `${dataset.agreements.length} agreements, ${dataset.receptions.length} receptions, ` +
         `${dataset.sales.length} sales, ${dataset.notifications.length} notifications`,
     );
+  }
+
+  // Asigna códigos legibles (TRA-#####) a las prendas sin código y deja el
+  // contador listo para que las próximas cargas sigan la secuencia.
+  private async assignGarmentCodes(): Promise<void> {
+    const pending = await this.garmentModel
+      .find({ code: { $exists: false } })
+      .sort({ createdAt: 1 })
+      .exec();
+    const counter = await this.counterModel.findById('garment').exec();
+    let seq = counter?.seq ?? 0;
+    for (const garment of pending) {
+      seq += 1;
+      garment.code = `TRA-${String(seq).padStart(5, '0')}`;
+      await garment.save();
+    }
+    await this.counterModel.updateOne({ _id: 'garment' }, { $set: { seq } }, { upsert: true });
   }
 
   /** Deletes only what a previous seedDemoMerchant() run created, matched by fixed emails. */
