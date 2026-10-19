@@ -15,6 +15,7 @@ import { formatArs } from '../shared/format';
 import { canTransition } from '../shared/state-machine/garment.state-machine';
 import { calculateConsignorAmount } from '../shared/utils/price.util';
 import { UsersService } from '../users/users.service';
+import { BulkSaleDto } from './dto/bulk-sale.dto';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { Sale, SaleDocument } from './schemas/sale.schema';
 
@@ -33,40 +34,63 @@ export class SalesService {
   ) {}
 
   async create(user: SessionUser, dto: CreateSaleDto): Promise<SaleDocument> {
-    const garment = await this.garments.getByIdOrFail(dto.garmentId);
+    return this.sellGarment(user, dto.garmentId, dto.actualSalePrice, new Date(dto.soldAt));
+  }
+
+  // Marca varias prendas como vendidas a la vez, cada una a su precio de venta
+  // acordado. Procesa una por una para que el fallo de una no frene al resto.
+  async bulkCreate(
+    user: SessionUser,
+    dto: BulkSaleDto,
+  ): Promise<{ sold: string[]; failed: { garmentId: string; reason: string }[] }> {
+    const soldAt = new Date(dto.soldAt);
+    const sold: string[] = [];
+    const failed: { garmentId: string; reason: string }[] = [];
+    for (const garmentId of dto.garmentIds) {
+      try {
+        const agreement = await this.agreements.byGarment(garmentId);
+        if (!agreement) {
+          throw new NotFoundException(`Acuerdo no encontrado para la prenda: ${garmentId}`);
+        }
+        await this.sellGarment(user, garmentId, agreement.agreedSalePrice, soldAt);
+        sold.push(garmentId);
+      } catch (error) {
+        failed.push({ garmentId, reason: error instanceof Error ? error.message : 'Error' });
+      }
+    }
+    return { sold, failed };
+  }
+
+  private async sellGarment(
+    user: SessionUser,
+    garmentId: string,
+    actualSalePrice: number,
+    soldAt: Date,
+  ): Promise<SaleDocument> {
+    const garment = await this.garments.getByIdOrFail(garmentId);
     if (garment.merchantId !== user.id) {
       throw new ForbiddenException('La prenda no pertenece al comercio');
     }
     if (!canTransition(garment.status, 'REGISTER_SALE')) {
       throw new ConflictException(`Transición inválida: ${garment.status} + REGISTER_SALE`);
     }
-    const agreement = await this.agreements.byGarment(dto.garmentId);
+    const agreement = await this.agreements.byGarment(garmentId);
     if (!agreement) {
-      throw new NotFoundException(`Acuerdo no encontrado para la prenda: ${dto.garmentId}`);
+      throw new NotFoundException(`Acuerdo no encontrado para la prenda: ${garmentId}`);
     }
     const consignorPercentage = 100 - agreement.appliedCommission;
-    const consignorAmount = calculateConsignorAmount(dto.actualSalePrice, consignorPercentage);
-    const merchantCommission = dto.actualSalePrice - consignorAmount;
+    const consignorAmount = calculateConsignorAmount(actualSalePrice, consignorPercentage);
+    const merchantCommission = actualSalePrice - consignorAmount;
     const sale = new this.saleModel({
-      garmentId: dto.garmentId,
-      actualSalePrice: dto.actualSalePrice,
-      soldAt: new Date(dto.soldAt),
+      garmentId,
+      actualSalePrice,
+      soldAt,
       consignorAmount,
       merchantCommission,
     });
     await sale.save();
-    const details = await this.saleEmailDetails(
-      garment.merchantId,
-      consignorAmount,
-      dto.actualSalePrice,
-    );
-    await this.garments.applyAction(
-      dto.garmentId,
-      'REGISTER_SALE',
-      'merchant',
-      'Venta registrada',
-      details,
-    );
+    const details = await this.saleEmailDetails(garment.merchantId, consignorAmount, actualSalePrice);
+    await this.garments.applyAction(garmentId, 'REGISTER_SALE', 'merchant', 'Venta registrada', details);
     return sale;
   }
 

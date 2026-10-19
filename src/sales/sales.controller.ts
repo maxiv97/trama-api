@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { SessionUser } from '../auth/session-user';
+import { BulkSaleDto } from './dto/bulk-sale.dto';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { SalesService } from './sales.service';
 
@@ -13,6 +14,12 @@ export class SalesController {
   @Roles('merchant')
   create(@CurrentUser() user: SessionUser, @Body() dto: CreateSaleDto) {
     return this.sales.create(user, dto);
+  }
+
+  @Post('sales/bulk')
+  @Roles('merchant')
+  bulkCreate(@CurrentUser() user: SessionUser, @Body() dto: BulkSaleDto) {
+    return this.sales.bulkCreate(user, dto);
   }
 
   @Get('garments/:garmentId/sale')
