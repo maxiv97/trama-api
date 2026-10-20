@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsNotEmpty, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
 
 class LocationDto {
   @IsString() @IsNotEmpty() neighborhood: string;
@@ -8,15 +8,17 @@ class LocationDto {
   @IsOptional() @IsNumber() lng?: number;
 }
 
+// Mismos rangos que el alta del comercio (register-merchant.dto): el backend valida la
+// configuración aunque la interfaz ya la limite, para no aceptar valores fuera de rango.
 class CommissionConfigDto {
-  @IsNumber() consignorPercentage: number;
-  @IsNumber() merchantPercentage: number;
+  @IsInt() @Min(0) @Max(100) consignorPercentage: number;
+  @IsInt() @Min(0) @Max(100) merchantPercentage: number;
 }
 
 class MerchantTermsDto {
-  @IsNumber() saleWindowMonths: number;
-  @IsNumber() graceMonths: number;
-  @IsNumber() payoutDay: number;
+  @IsInt() @Min(1) @Max(24) saleWindowMonths: number;
+  @IsInt() @Min(0) @Max(12) graceMonths: number;
+  @IsInt() @Min(1) @Max(28) payoutDay: number;
 }
 
 export class UpdateMerchantDto {

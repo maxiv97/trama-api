@@ -18,8 +18,8 @@ export class ProposalsController {
   }
 
   @Get('garments/:garmentId/proposal')
-  byGarment(@Param('garmentId') garmentId: string) {
-    return this.proposals.byGarment(garmentId);
+  byGarment(@CurrentUser() user: SessionUser, @Param('garmentId') garmentId: string) {
+    return this.proposals.byGarmentForUser(garmentId, user.id, user.role);
   }
 
   @Patch('garments/:garmentId/draft')
@@ -39,8 +39,8 @@ export class ProposalsController {
   }
 
   @Get('proposals/:id')
-  getById(@Param('id') id: string) {
-    return this.proposals.getByIdOrFail(id);
+  getById(@CurrentUser() user: SessionUser, @Param('id') id: string) {
+    return this.proposals.getByIdForUser(id, user.id, user.role);
   }
 
   @Post('proposals/:garmentId/accept')

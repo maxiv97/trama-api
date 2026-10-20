@@ -212,9 +212,20 @@ export class GarmentsService {
   }
 
   // Solo la primera foto de una prenda, para la carga diferida de miniaturas en los listados.
-  async firstPhoto(id: string): Promise<string | null> {
-    const doc = await this.garmentModel.findById(id, { photos: { $slice: 1 } }).exec();
-    return doc?.photos?.[0] ?? null;
+  // Verifica además que la prenda sea del usuario que la pide (su cedente o su comercio),
+  // sin traer el resto de las fotos.
+  async firstPhotoForUser(id: string, userId: string, role: string): Promise<string | null> {
+    const doc = await this.garmentModel
+      .findById(id, { consignorId: 1, merchantId: 1, photos: { $slice: 1 } })
+      .exec();
+    if (!doc) {
+      throw new NotFoundException(`Prenda no encontrada: ${id}`);
+    }
+    const ownerId = role === 'merchant' ? doc.merchantId : doc.consignorId;
+    if (ownerId !== userId) {
+      throw new ForbiddenException('La prenda no te pertenece');
+    }
+    return doc.photos?.[0] ?? null;
   }
 
   async applyAction(

@@ -94,6 +94,26 @@ export class ProposalsService {
     return proposal;
   }
 
+  // La propuesta solo puede consultarla el cedente o el comercio de la prenda asociada.
+  async byGarmentForUser(garmentId: string, userId: string, role: string): Promise<ProposalDocument | null> {
+    await this.assertGarmentAccess(garmentId, userId, role);
+    return this.byGarment(garmentId);
+  }
+
+  async getByIdForUser(id: string, userId: string, role: string): Promise<ProposalDocument> {
+    const proposal = await this.getByIdOrFail(id);
+    await this.assertGarmentAccess(proposal.garmentId, userId, role);
+    return proposal;
+  }
+
+  private async assertGarmentAccess(garmentId: string, userId: string, role: string): Promise<void> {
+    const garment = await this.garments.getByIdOrFail(garmentId);
+    const ownerId = role === 'merchant' ? garment.merchantId : garment.consignorId;
+    if (ownerId !== userId) {
+      throw new ForbiddenException('La propuesta no te pertenece');
+    }
+  }
+
   async pendingForMerchant(merchantId: string): Promise<ProposalDocument[]> {
     const garments = await this.garments.metaByMerchant(merchantId);
     const garmentIds = garments

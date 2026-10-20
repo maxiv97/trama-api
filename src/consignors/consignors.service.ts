@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { GarmentsService } from '../garments/garments.service';
@@ -27,5 +27,16 @@ export class ConsignorsService {
     const garments = await this.garments.metaByMerchant(merchantId);
     const consignorIds = [...new Set(garments.map((garment) => garment.consignorId))];
     return this.consignorModel.find({ _id: { $in: consignorIds } }).exec();
+  }
+
+  // Un comercio solo puede ver a un cedente con el que opera (que le haya consignado alguna
+  // prenda); de lo contrario, no tiene por qué acceder a sus datos de contacto.
+  async getForMerchantOrFail(id: string, merchantId: string): Promise<ConsignorDocument> {
+    const consignor = await this.getByIdOrFail(id);
+    const own = await this.byMerchant(merchantId);
+    if (!own.some((c) => c.id === id)) {
+      throw new ForbiddenException('El cedente no opera con tu comercio');
+    }
+    return consignor;
   }
 }

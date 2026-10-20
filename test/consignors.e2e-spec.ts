@@ -54,33 +54,17 @@ describe('Consignors (e2e)', () => {
     await mongo.stop();
   });
 
-  it('lists every consignor', async () => {
-    const res = await request(app.getHttpServer())
+  it('rejects a consignor accessing the consignors list (DEF-02)', async () => {
+    await request(app.getHttpServer())
       .get('/api/consignors')
-      .set('Authorization', `Bearer ${merchantToken}`)
-      .expect(200);
-    expect(res.body).toHaveLength(2);
-    const names = (res.body as ConsignorBody[]).map((c) => c.name);
-    expect(names).toEqual(expect.arrayContaining(['Ana Gómez', 'Luis Ríos']));
-    const ana = (res.body as ConsignorBody[]).find((c) => c.name === 'Ana Gómez');
-    expect(ana?.dni).toBe('32.111.222');
-    expect(ana?.role).toBe('consignor');
-  });
-
-  it('gets a consignor by id and 404s the unknown', async () => {
-    await request(app.getHttpServer())
-      .get(`/api/consignors/${anaId}`)
       .set('Authorization', `Bearer ${consignorToken}`)
-      .expect(200);
-    await request(app.getHttpServer())
-      .get('/api/consignors/64b000000000000000000000')
-      .set('Authorization', `Bearer ${merchantToken}`)
-      .expect(404);
+      .expect(403);
   });
 
-  it('lists only the consignors that have garments with the merchant', async () => {
+  it('returns only the consignors that operate with the merchant', async () => {
+    // Sin prendas todavía, el comercio no tiene cedentes vinculados.
     const empty = await request(app.getHttpServer())
-      .get(`/api/consignors?merchantId=${merchantId}`)
+      .get('/api/consignors')
       .set('Authorization', `Bearer ${merchantToken}`)
       .expect(200);
     expect(empty.body).toHaveLength(0);
@@ -102,10 +86,39 @@ describe('Consignors (e2e)', () => {
       });
 
     const res = await request(app.getHttpServer())
-      .get(`/api/consignors?merchantId=${merchantId}`)
+      .get('/api/consignors')
       .set('Authorization', `Bearer ${merchantToken}`)
       .expect(200);
     const names = (res.body as ConsignorBody[]).map((c) => c.name);
     expect(names).toEqual(['Ana Gómez']);
+    const ana = (res.body as ConsignorBody[])[0];
+    expect(ana.dni).toBe('32.111.222');
+  });
+
+  it('getById: a consignor cannot read, a merchant only its own consignors (DEF-03)', async () => {
+    // Un cedente no puede leer los datos de ningún cedente.
+    await request(app.getHttpServer())
+      .get(`/api/consignors/${anaId}`)
+      .set('Authorization', `Bearer ${consignorToken}`)
+      .expect(403);
+
+    // El comercio sí puede leer a Ana, que ya opera con él (prenda del test anterior).
+    await request(app.getHttpServer())
+      .get(`/api/consignors/${anaId}`)
+      .set('Authorization', `Bearer ${merchantToken}`)
+      .expect(200);
+
+    // Pero no a Luis, que no le consignó nada.
+    const luis = await login('luis@example.com');
+    await request(app.getHttpServer())
+      .get(`/api/consignors/${luis.body.user.id}`)
+      .set('Authorization', `Bearer ${merchantToken}`)
+      .expect(403);
+
+    // Id inexistente → 404.
+    await request(app.getHttpServer())
+      .get('/api/consignors/64b000000000000000000000')
+      .set('Authorization', `Bearer ${merchantToken}`)
+      .expect(404);
   });
 });

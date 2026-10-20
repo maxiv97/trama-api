@@ -97,6 +97,18 @@ describe('Merchants (e2e)', () => {
     expect(after.body.salesPoints).toHaveLength(2);
   });
 
+  it('rejects an out-of-range configuration (DEF-04)', async () => {
+    await request(app.getHttpServer())
+      .patch(`/api/merchants/${merchantId}`)
+      .set('Authorization', `Bearer ${merchantToken}`)
+      .send({
+        ...editableBody,
+        commissionConfig: { consignorPercentage: 150, merchantPercentage: -50 },
+        terms: { saleWindowMonths: 4, graceMonths: 2, payoutDay: 35 },
+      })
+      .expect(400);
+  });
+
   it('forbids editing another merchant', async () => {
     const vintage = await login('hola@vintagecba.com');
     await request(app.getHttpServer())
