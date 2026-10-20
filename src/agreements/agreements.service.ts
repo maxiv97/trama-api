@@ -34,8 +34,8 @@ export class AgreementsService {
   async listForUser(role: Role, userId: string): Promise<AgreementDocument[]> {
     const garments =
       role === 'merchant'
-        ? await this.garments.byMerchant(userId)
-        : await this.garments.byConsignor(userId);
+        ? await this.garments.metaByMerchant(userId)
+        : await this.garments.metaByConsignor(userId);
     const garmentIds = garments.map((garment) => garment.id);
     return this.model.find({ garmentId: { $in: garmentIds } }).exec();
   }

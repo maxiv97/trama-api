@@ -48,7 +48,7 @@ export class ReportsService {
     merchantId: string,
     filters: ReportFilters = {},
   ): Promise<ReceptionDiscrepancyReport> {
-    const garments = (await this.garments.byMerchant(merchantId)).filter((g) =>
+    const garments = (await this.garments.metaByMerchant(merchantId)).filter((g) =>
       garmentInScope(g, filters),
     );
     const receptions = (await this.receptions.byGarmentIds(garments.map((g) => g.id))).filter((r) =>
@@ -79,7 +79,7 @@ export class ReportsService {
     merchantId: string,
     filters: ReportFilters = {},
   ): Promise<DiscrepancyDetailRow[]> {
-    const garments = (await this.garments.byMerchant(merchantId)).filter((g) =>
+    const garments = (await this.garments.metaByMerchant(merchantId)).filter((g) =>
       garmentInScope(g, filters),
     );
     const garmentById = new Map(garments.map((g) => [g.id, g]));
@@ -113,7 +113,7 @@ export class ReportsService {
     for (const sp of merchant?.salesPoints ?? []) {
       nameById.set((sp as unknown as { id: string }).id, sp.name);
     }
-    const garments = (await this.garments.byMerchant(merchantId)).filter((g) =>
+    const garments = (await this.garments.metaByMerchant(merchantId)).filter((g) =>
       garmentInScope(g, filters),
     );
     const pointByGarment = new Map(garments.map((g) => [g.id, g.salesPointId]));
@@ -145,7 +145,7 @@ export class ReportsService {
 
   async rotation(merchantId: string, filters: ReportFilters = {}): Promise<RotationReport> {
     const now = Date.now();
-    const garments = (await this.garments.byMerchant(merchantId)).filter((g) =>
+    const garments = (await this.garments.metaByMerchant(merchantId)).filter((g) =>
       garmentInScope(g, filters),
     );
     const garmentById = new Map(garments.map((g) => [g.id, g]));
@@ -187,7 +187,7 @@ export class ReportsService {
     const consignors = (await this.consignors.byMerchant(merchantId)).filter(
       (c) => !filters.consignorId || c.id === filters.consignorId,
     );
-    const garments = (await this.garments.byMerchant(merchantId)).filter((g) =>
+    const garments = (await this.garments.metaByMerchant(merchantId)).filter((g) =>
       garmentInScope(g, filters),
     );
     const sales = (await this.sales.byGarmentIds(garments.map((garment) => garment.id))).filter(
@@ -260,7 +260,7 @@ export class ReportsService {
   }
 
   async salesByCategory(merchantId: string, filters: ReportFilters = {}): Promise<CategorySales[]> {
-    const garments = (await this.garments.byMerchant(merchantId)).filter((g) =>
+    const garments = (await this.garments.metaByMerchant(merchantId)).filter((g) =>
       garmentInScope(g, filters),
     );
     const garmentById = new Map(garments.map((garment) => [garment.id, garment]));
@@ -342,7 +342,7 @@ export class ReportsService {
     const merchant = await this.users.findMerchantById(merchantId);
     const graceMonths = merchant?.terms.graceMonths ?? 0;
 
-    const inStock = (await this.garments.byMerchant(merchantId)).filter(
+    const inStock = (await this.garments.metaByMerchant(merchantId)).filter(
       (garment) =>
         (garment.status === 'in_stock' || garment.status === 'with_remarks') &&
         garmentInScope(garment, filters),
@@ -378,7 +378,7 @@ export class ReportsService {
   }
 
   async summary(merchantId: string, filters: ReportFilters = {}): Promise<SummaryReport> {
-    const garments = (await this.garments.byMerchant(merchantId)).filter((g) =>
+    const garments = (await this.garments.metaByMerchant(merchantId)).filter((g) =>
       garmentInScope(g, filters),
     );
     const sales = await this.sales.byGarmentIds(garments.map((g) => g.id));
@@ -406,7 +406,7 @@ export class ReportsService {
   }
 
   async weekly(merchantId: string, filters: ReportFilters = {}, weeks = 6): Promise<WeeklyPoint[]> {
-    const garments = (await this.garments.byMerchant(merchantId)).filter((g) =>
+    const garments = (await this.garments.metaByMerchant(merchantId)).filter((g) =>
       garmentInScope(g, filters),
     );
     const sales = await this.sales.byGarmentIds(garments.map((g) => g.id));
@@ -439,7 +439,7 @@ export class ReportsService {
   // recargaban y recalculaban las mismas prendas una y otra vez.
   async dashboard(merchantId: string, expiryDays = 30): Promise<DashboardReport> {
     const merchant = await this.users.findMerchantById(merchantId);
-    const garments = await this.garments.byMerchant(merchantId);
+    const garments = await this.garments.metaByMerchant(merchantId);
     const garmentById = new Map(garments.map((g) => [g.id, g]));
     const sales = await this.sales.byGarmentIds([...garmentById.keys()]);
     const agreements = await this.agreements.listForUser('merchant', merchantId);

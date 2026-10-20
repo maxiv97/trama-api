@@ -198,6 +198,19 @@ export class GarmentsService {
     return this.garmentModel.find({ merchantId }, { photos: { $slice: 1 } }).exec();
   }
 
+  // Reportes, liquidaciones y agregaciones nunca muestran fotos, video ni el timeline.
+  // Esos campos (sobre todo las fotos base64) dominan el tamaño del documento, así que
+  // excluirlos evita transferir megabytes por comercio en cada endpoint de reportes.
+  private static readonly META_PROJECTION = { photos: 0, video: 0, timeline: 0 } as const;
+
+  metaByConsignor(consignorId: string): Promise<GarmentDocument[]> {
+    return this.garmentModel.find({ consignorId }, GarmentsService.META_PROJECTION).exec();
+  }
+
+  metaByMerchant(merchantId: string): Promise<GarmentDocument[]> {
+    return this.garmentModel.find({ merchantId }, GarmentsService.META_PROJECTION).exec();
+  }
+
   async applyAction(
     id: string,
     action: GarmentAction,

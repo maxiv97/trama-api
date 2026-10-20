@@ -24,7 +24,7 @@ export class ConsignorsService {
   }
 
   async byMerchant(merchantId: string): Promise<ConsignorDocument[]> {
-    const garments = await this.garments.byMerchant(merchantId);
+    const garments = await this.garments.metaByMerchant(merchantId);
     const consignorIds = [...new Set(garments.map((garment) => garment.consignorId))];
     return this.consignorModel.find({ _id: { $in: consignorIds } }).exec();
   }

@@ -73,8 +73,8 @@ export class PayoutsService {
   ): Promise<MonthlyPayout[]> {
     const garments = (
       perspective === 'merchant'
-        ? await this.garments.byMerchant(id)
-        : await this.garments.byConsignor(id)
+        ? await this.garments.metaByMerchant(id)
+        : await this.garments.metaByConsignor(id)
     ).filter((garment) => garmentInScope(garment, filters));
     const garmentById = new Map(garments.map((garment) => [garment.id, garment]));
     const sales = (await this.sales.byGarmentIds([...garmentById.keys()])).filter((sale) =>

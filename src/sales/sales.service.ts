@@ -130,7 +130,7 @@ export class SalesService {
   }
 
   async byMerchant(merchantId: string): Promise<SaleDocument[]> {
-    const garments = await this.garments.byMerchant(merchantId);
+    const garments = await this.garments.metaByMerchant(merchantId);
     return this.byGarmentIds(garments.map((garment) => garment.id));
   }
 

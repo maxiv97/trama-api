@@ -95,7 +95,7 @@ export class ProposalsService {
   }
 
   async pendingForMerchant(merchantId: string): Promise<ProposalDocument[]> {
-    const garments = await this.garments.byMerchant(merchantId);
+    const garments = await this.garments.metaByMerchant(merchantId);
     const garmentIds = garments
       .filter((garment) => garment.status === 'under_review')
       .map((garment) => garment.id);
