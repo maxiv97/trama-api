@@ -211,6 +211,12 @@ export class GarmentsService {
     return this.garmentModel.find({ merchantId }, GarmentsService.META_PROJECTION).exec();
   }
 
+  // Solo la primera foto de una prenda, para la carga diferida de miniaturas en los listados.
+  async firstPhoto(id: string): Promise<string | null> {
+    const doc = await this.garmentModel.findById(id, { photos: { $slice: 1 } }).exec();
+    return doc?.photos?.[0] ?? null;
+  }
+
   async applyAction(
     id: string,
     action: GarmentAction,

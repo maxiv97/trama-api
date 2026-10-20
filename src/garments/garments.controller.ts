@@ -28,6 +28,13 @@ export class GarmentsController {
     return asMeta ? this.garments.metaByConsignor(user.id) : this.garments.byConsignor(user.id);
   }
 
+  // Miniatura on-demand: las listas se traen en modo `lite` (sin fotos) y cada tarjeta
+  // pide su primera foto solo cuando entra en pantalla.
+  @Get(':id/photo')
+  async photo(@Param('id') id: string) {
+    return { photo: await this.garments.firstPhoto(id) };
+  }
+
   @Get(':id')
   getById(@Param('id') id: string) {
     return this.garments.getByIdOrFail(id);
