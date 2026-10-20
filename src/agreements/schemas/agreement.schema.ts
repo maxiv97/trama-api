@@ -4,7 +4,7 @@ import { baseSchemaOptions } from '../../shared/mongoose/schema-options';
 
 @Schema(baseSchemaOptions)
 export class Agreement {
-  @Prop({ required: true }) garmentId: string;
+  @Prop({ required: true, index: true }) garmentId: string;
   @Prop({ required: true }) agreedConsignorPrice: number;
   @Prop({ required: true }) agreedSalePrice: number;
   @Prop({ required: true }) appliedCommission: number;

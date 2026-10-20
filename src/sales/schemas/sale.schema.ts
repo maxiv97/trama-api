@@ -5,7 +5,7 @@ import { baseSchemaOptions } from '../../shared/mongoose/schema-options';
 
 @Schema(baseSchemaOptions)
 export class Sale {
-  @Prop({ required: true }) garmentId: string;
+  @Prop({ required: true, index: true }) garmentId: string;
   @Prop({ required: true }) actualSalePrice: number;
   @Prop({ required: true }) soldAt: Date;
   @Prop({ required: true }) consignorAmount: number;

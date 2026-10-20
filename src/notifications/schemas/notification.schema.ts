@@ -5,7 +5,7 @@ import { baseSchemaOptions } from '../../shared/mongoose/schema-options';
 
 @Schema(baseSchemaOptions)
 export class Notification {
-  @Prop({ required: true }) userId: string;
+  @Prop({ required: true, index: true }) userId: string;
   @Prop({ required: true, type: String }) type: NotificationType;
   @Prop({ required: true }) text: string;
   @Prop({ required: true }) date: Date;

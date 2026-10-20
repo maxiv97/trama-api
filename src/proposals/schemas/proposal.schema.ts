@@ -13,7 +13,7 @@ export const CounterofferSchema = SchemaFactory.createForClass(Counteroffer);
 
 @Schema(baseSchemaOptions)
 export class Proposal {
-  @Prop({ required: true }) garmentId: string;
+  @Prop({ required: true, index: true }) garmentId: string;
   @Prop({ required: true }) requestedConsignorPrice: number;
   @Prop({ required: true }) calculatedSalePrice: number;
   @Prop({ required: true, type: String }) status: ProposalStatus;

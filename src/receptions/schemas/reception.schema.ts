@@ -5,7 +5,7 @@ import { baseSchemaOptions } from '../../shared/mongoose/schema-options';
 
 @Schema(baseSchemaOptions)
 export class Reception {
-  @Prop({ required: true }) garmentId: string;
+  @Prop({ required: true, index: true }) garmentId: string;
   @Prop({ required: true }) receivedAt: Date;
   @Prop({ required: true }) salesPointId: string;
   @Prop({ required: true, type: String }) result: ReceptionResult;
