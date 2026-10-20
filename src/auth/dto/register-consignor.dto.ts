@@ -30,6 +30,9 @@ export class RegisterConsignorDto {
   @IsString() @MinLength(1) phone: string;
   @IsString() @MinLength(6) @MaxLength(72) password: string;
   @IsString() @MinLength(1) dni: string;
+  // CBU, CVU o alias donde el comercio le transfiere la liquidación al cedente. El front lo
+  // exige como obligatorio; acá va opcional para no romper clientes viejos durante el rollout.
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(120) bankDetails?: string;
 
   @ValidateNested()
   @Type(() => ConsignorLocationDto)

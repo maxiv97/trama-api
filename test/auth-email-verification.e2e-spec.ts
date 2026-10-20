@@ -15,6 +15,7 @@ const consignorPayload = {
   phone: '351-4000001',
   password: 'secret123',
   dni: '30.555.666',
+  bankDetails: 'franco.ledesma.mp',
   location: { street: 'Caseros', number: '450', neighborhood: 'Alberdi', city: 'Córdoba' },
 };
 

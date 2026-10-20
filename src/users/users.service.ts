@@ -17,6 +17,7 @@ export interface ConsignorSummary {
   id: string;
   name: string;
   dni: string;
+  bankDetails?: string;
 }
 
 export interface CreateConsignorInput {
@@ -26,6 +27,7 @@ export interface CreateConsignorInput {
   phone: string;
   password: string;
   dni: string;
+  bankDetails?: string;
   location: UserLocation;
 }
 
@@ -84,6 +86,7 @@ export class UsersService {
       accountStatus: 'active',
       location: input.location,
       dni: input.dni,
+      bankDetails: input.bankDetails,
       password,
     } as unknown as Consignor);
   }
@@ -175,6 +178,7 @@ export class UsersService {
       id: consignor.id,
       name: consignor.get('name') as string,
       dni: consignor.dni,
+      bankDetails: consignor.bankDetails,
     }));
   }
 }

@@ -84,6 +84,7 @@ export class SeedService {
           lng: -64.1888,
         },
         dni: '32.111.222',
+        bankDetails: 'ana.gomez.mp',
         password,
       },
       {
@@ -100,6 +101,7 @@ export class SeedService {
           lng: -64.195,
         },
         dni: '28.333.444',
+        bankDetails: 'luis.rios.mp',
         password,
       },
     ] as unknown as Consignor[]);
@@ -286,6 +288,8 @@ export class SeedService {
           lng: c.lng,
         },
         dni: c.dni,
+        // Alias estilo Mercado Pago derivado del email, para mostrar en la liquidación.
+        bankDetails: `${c.email.split('@')[0].replace('.demo', '')}.mp`,
         password,
       })) as unknown as Consignor[],
     );

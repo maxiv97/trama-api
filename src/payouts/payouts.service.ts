@@ -110,6 +110,7 @@ export class PayoutsService {
               ? (consignor?.name ?? '—')
               : (merchant?.businessName ?? '—'),
           counterpartDni: perspective === 'merchant' ? consignor?.dni : undefined,
+          counterpartBankDetails: perspective === 'merchant' ? consignor?.bankDetails : undefined,
           lines: [],
           unpaidGarmentIds: [],
           totalAmount: 0,
