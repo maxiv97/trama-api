@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, Post, Query } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { SessionUser } from '../auth/session-user';
@@ -16,11 +16,16 @@ export class GarmentsController {
     return this.garments.create(user.id, dto);
   }
 
+  // `lite=1` devuelve las prendas sin fotos/video/timeline. Las vistas que agregan datos
+  // (puntos de venta, tarjetas de reportes) no muestran miniaturas y así evitan traerse
+  // los base64 de cada prenda, que colgaban la carga.
   @Get()
-  list(@CurrentUser() user: SessionUser) {
-    return user.role === 'merchant'
-      ? this.garments.byMerchant(user.id)
-      : this.garments.byConsignor(user.id);
+  list(@CurrentUser() user: SessionUser, @Query('lite') lite?: string) {
+    const asMeta = lite === '1' || lite === 'true';
+    if (user.role === 'merchant') {
+      return asMeta ? this.garments.metaByMerchant(user.id) : this.garments.byMerchant(user.id);
+    }
+    return asMeta ? this.garments.metaByConsignor(user.id) : this.garments.byConsignor(user.id);
   }
 
   @Get(':id')
