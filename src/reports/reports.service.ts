@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { AgreementsService } from '../agreements/agreements.service';
 import { ConsignorsService } from '../consignors/consignors.service';
 import { GarmentsService } from '../garments/garments.service';
+import { GarmentDocument } from '../garments/schemas/garment.schema';
+import { Sale } from '../sales/schemas/sale.schema';
 import { ReceptionsService } from '../receptions/receptions.service';
+import { DashboardReport } from './dashboard';
 import { GarmentStatus, ReceptionDiscrepancy } from '../shared/domain/enums';
 import { SalesService } from '../sales/sales.service';
 import { UsersService } from '../users/users.service';
@@ -264,7 +267,14 @@ export class ReportsService {
     const sales = (await this.sales.byGarmentIds([...garmentById.keys()])).filter((s) =>
       dateInRange(s.soldAt, filters),
     );
+    return this.categoriesFromData(garments, garmentById, sales);
+  }
 
+  private categoriesFromData(
+    garments: GarmentDocument[],
+    garmentById: Map<string, GarmentDocument>,
+    sales: Sale[],
+  ): CategorySales[] {
     const byCategory = new Map<string, CategorySales>();
     // Received count (conversion base) and total days-to-sale, kept aside so the running
     // averages don't leak into the returned rows until we resolve them at the end.
@@ -372,7 +382,10 @@ export class ReportsService {
       garmentInScope(g, filters),
     );
     const sales = await this.sales.byGarmentIds(garments.map((g) => g.id));
+    return this.summaryFromSales(sales, filters);
+  }
 
+  private summaryFromSales(sales: Sale[], filters: ReportFilters): SummaryReport {
     const { current, previous } = this.periods(filters);
     const kpis = (from: Date, to: Date): SummaryKpis => {
       let profit = 0;
@@ -397,8 +410,11 @@ export class ReportsService {
       garmentInScope(g, filters),
     );
     const sales = await this.sales.byGarmentIds(garments.map((g) => g.id));
+    return this.weeklyFromSales(sales, weeks);
+  }
 
-    // A fixed trailing window: the last `weeks` 7-day buckets ending today. Ignores from/to.
+  // A fixed trailing window: the last `weeks` 7-day buckets ending today. Ignores from/to.
+  private weeklyFromSales(sales: Sale[], weeks: number): WeeklyPoint[] {
     const now = new Date();
     const endOfToday = new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999),
@@ -417,6 +433,36 @@ export class ReportsService {
       points.push({ weekStart: from.toISOString().slice(0, 10), profit, soldCount });
     }
     return points;
+  }
+
+  // Un solo dataset para todo el Panel del comercio: evita las 6-7 llamadas que
+  // recargaban y recalculaban las mismas prendas una y otra vez.
+  async dashboard(merchantId: string, expiryDays = 30): Promise<DashboardReport> {
+    const merchant = await this.users.findMerchantById(merchantId);
+    const garments = await this.garments.byMerchant(merchantId);
+    const garmentById = new Map(garments.map((g) => [g.id, g]));
+    const sales = await this.sales.byGarmentIds([...garmentById.keys()]);
+    const agreements = await this.agreements.listForUser('merchant', merchantId);
+    const agreementByGarment = new Map(agreements.map((a) => [a.garmentId, a]));
+
+    const graceMonths = merchant?.terms.graceMonths ?? 0;
+    const threshold = this.addDays(new Date(), expiryDays);
+    let expiringCount = 0;
+    for (const garment of garments) {
+      if (garment.status !== 'in_stock' && garment.status !== 'with_remarks') continue;
+      const agreement = agreementByGarment.get(garment.id);
+      if (!agreement) continue;
+      if (this.addMonths(agreement.saleDeadline, graceMonths) <= threshold) expiringCount += 1;
+    }
+
+    return {
+      displayName: merchant?.businessName ?? '',
+      summary: this.summaryFromSales(sales, {}),
+      categories: this.categoriesFromData(garments, garmentById, sales),
+      weekly: this.weeklyFromSales(sales, 6),
+      pendingCount: garments.filter((g) => g.status === 'under_review').length,
+      expiringCount,
+    };
   }
 
   // Current period from the filter (or the current month by default) and the equal-length

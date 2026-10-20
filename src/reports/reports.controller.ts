@@ -9,6 +9,12 @@ import { ReportsService } from './reports.service';
 export class ReportsController {
   constructor(private readonly reports: ReportsService) {}
 
+  @Get('dashboard')
+  @Roles('merchant')
+  dashboard(@CurrentUser() user: SessionUser) {
+    return this.reports.dashboard(user.id);
+  }
+
   @Get('expiring')
   @Roles('merchant')
   expiring(
