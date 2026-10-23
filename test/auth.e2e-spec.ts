@@ -20,7 +20,9 @@ describe('Auth (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api');
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     await app.init();
 
     await app.get(SeedService).seedUsers();
@@ -66,6 +68,7 @@ describe('Auth (e2e)', () => {
       id: expect.any(String),
       name: 'María López',
       role: 'merchant',
+      email: 'contacto@tramaboutique.com',
     });
   });
 

@@ -1,7 +1,15 @@
 import type { GarmentStatus, NotificationType } from '../shared/domain/enums';
 
 // The seven lifecycle milestones shown in the email tracker, matching the app's ProgressTracker.
-const STEPS = ['Cargada', 'En revisión', 'Acordada', 'Recepcionada', 'En stock', 'Vendida', 'Liquidada'];
+const STEPS = [
+  'Cargada',
+  'En revisión',
+  'Acordada',
+  'Recepcionada',
+  'En stock',
+  'Vendida',
+  'Liquidada',
+];
 
 // Current milestone per garment status. Terminal/negative states (rejected, no_agreement, cancelled)
 // map to nothing, so those emails show no tracker.
@@ -68,7 +76,10 @@ function footerRow(): string {
         </td></tr>`;
 }
 
-export function buildVerificationEmail(name: string, code: string): { html: string; text: string } {
+export function buildVerificationEmail(
+  name: string,
+  code: string,
+): { html: string; text: string } {
   const inner = `<tr><td style="padding:30px 28px 8px;">
           <p style="margin:0 0 6px;font-size:16px;color:#1c2620;">Hola ${name},</p>
           <p style="margin:0 0 22px;font-size:15px;line-height:1.5;color:#565e55;">Usá este código para verificar tu cuenta en Trama:</p>
@@ -126,7 +137,8 @@ export function buildNotificationEmail(
           </td></tr></table>
         </td></tr>
         ${footerRow()}`;
-  const stageText = currentStep === null ? '' : `\nEstado: ${STEPS[currentStep]}\n`;
+  const stageText =
+    currentStep === null ? '' : `\nEstado: ${STEPS[currentStep]}\n`;
   const detailsText = details.length
     ? '\n' + details.map((d) => `${d.label}: ${d.value}`).join('\n') + '\n'
     : '';
@@ -158,4 +170,92 @@ export function subjectForNotification(type: NotificationType): string {
 
 export function headlineForNotification(type: NotificationType): string {
   return HEADLINES[type] ?? 'Novedades en Trama';
+}
+
+// --- Centro de ayuda: tickets de contacto -------------------------------------------------------
+
+// Escapa lo que escribe la persona (nombre, mensaje) antes de meterlo en el HTML del email.
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+export interface SupportTicketEmailData {
+  ticketId: string;
+  motivo: string;
+  rol: string;
+  nombre: string;
+  email: string;
+  mensaje: string;
+  origen?: string;
+  faqsVistas?: string[];
+  userId?: string;
+  conCaptura: boolean;
+}
+
+// Email interno que recibe la casilla de Trama con cada consulta (responder = responderle a la persona).
+export function buildSupportTicketEmail(t: SupportTicketEmailData): {
+  html: string;
+  text: string;
+} {
+  const details: EmailDetail[] = [
+    { label: 'Ticket', value: escapeHtml(t.ticketId) },
+    { label: 'Motivo', value: escapeHtml(t.motivo) },
+    { label: 'Rol', value: escapeHtml(t.rol) },
+    { label: 'Nombre', value: escapeHtml(t.nombre) },
+    { label: 'Email', value: escapeHtml(t.email) },
+    { label: 'Usuario', value: t.userId ? escapeHtml(t.userId) : 'Sin sesión' },
+  ];
+  const vistas = t.faqsVistas?.length ? t.faqsVistas.join(', ') : 'ninguna';
+  const inner = `<tr><td style="padding:30px 28px 8px;">
+          <p style="margin:0 0 6px;font-size:18px;font-weight:bold;color:#19281d;">Nueva consulta desde la ayuda</p>
+          <p style="margin:0 0 18px;font-size:14px;line-height:1.5;color:#565e55;">Respondé este correo para contestarle directamente a ${escapeHtml(t.nombre)}.</p>
+          ${detailsBlock(details)}
+          <p style="margin:0 0 6px;font-size:13px;color:#868d83;">Mensaje</p>
+          <div style="margin:0 0 20px;padding:14px 16px;background:#ffffff;border:1px solid #e3e9da;border-radius:12px;font-size:15px;line-height:1.55;color:#1c2620;white-space:pre-wrap;">${escapeHtml(t.mensaje)}</div>
+          <p style="margin:0 0 4px;font-size:12px;color:#868d83;">Origen: ${escapeHtml(t.origen || 'sin dato')}</p>
+          <p style="margin:0 0 4px;font-size:12px;color:#868d83;">Preguntas vistas antes de escribir: ${escapeHtml(vistas)}</p>
+          ${t.conCaptura ? '<p style="margin:0;font-size:12px;color:#868d83;">Incluye una captura adjunta.</p>' : ''}
+        </td></tr>
+        <tr><td style="padding:0 28px 22px;"></td></tr>`;
+  const text = [
+    `Nueva consulta desde la ayuda · ${t.ticketId}`,
+    '',
+    `Motivo: ${t.motivo}`,
+    `Rol: ${t.rol}`,
+    `Nombre: ${t.nombre}`,
+    `Email: ${t.email}`,
+    `Usuario: ${t.userId ?? 'Sin sesión'}`,
+    '',
+    t.mensaje,
+    '',
+    `Origen: ${t.origen || 'sin dato'}`,
+    `Preguntas vistas: ${vistas}`,
+    t.conCaptura ? 'Incluye una captura adjunta.' : '',
+  ].join('\n');
+  return { html: shell(inner), text };
+}
+
+// Confirmación para la persona que escribió, con el número de consulta.
+export function buildSupportConfirmationEmail(
+  name: string,
+  ticketId: string,
+  motivo: string,
+): { html: string; text: string } {
+  const inner = `<tr><td style="padding:30px 28px 8px;">
+          <p style="margin:0 0 6px;font-size:16px;color:#1c2620;">Hola ${escapeHtml(name)},</p>
+          <p style="margin:0 0 6px;font-size:18px;font-weight:bold;color:#19281d;">Recibimos tu consulta</p>
+          <p style="margin:0 0 20px;font-size:15px;line-height:1.5;color:#565e55;">Te vamos a responder a este email. Si querés sumar algo, respondé este correo indicando el número de consulta.</p>
+          ${detailsBlock([
+            { label: 'Número de consulta', value: escapeHtml(ticketId) },
+            { label: 'Motivo', value: escapeHtml(motivo) },
+          ])}
+        </td></tr>
+        ${footerRow()}`;
+  const text = `Hola ${name},\n\nRecibimos tu consulta.\nNúmero de consulta: ${ticketId}\nMotivo: ${motivo}\n\nTe vamos a responder a este email.`;
+  return { html: shell(inner), text };
 }
