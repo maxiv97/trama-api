@@ -81,9 +81,14 @@ export class PayoutsService {
       dateInRange(sale.soldAt, filters),
     );
 
+    const involved = sales
+      .map((sale) => garmentById.get(sale.garmentId))
+      .filter((garment) => garment !== undefined);
     const [merchants, consignors] = await Promise.all([
-      this.users.merchantSummaries(),
-      this.users.consignorSummaries(),
+      this.users.merchantSummaries([
+        ...new Set(involved.map((g) => g.merchantId).filter((id): id is string => !!id)),
+      ]),
+      this.users.consignorSummaries([...new Set(involved.map((g) => g.consignorId))]),
     ]);
     const merchantById = new Map<string, MerchantSummary>(merchants.map((m) => [m.id, m]));
     const consignorById = new Map<string, ConsignorSummary>(consignors.map((c) => [c.id, c]));

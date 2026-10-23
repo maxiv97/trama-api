@@ -211,6 +211,18 @@ export class GarmentsService {
     return this.garmentModel.find({ merchantId }, GarmentsService.META_PROJECTION).exec();
   }
 
+  // Cedentes que operan con el comercio: la base devuelve solo los ids distintos, sin
+  // materializar las prendas.
+  consignorIdsByMerchant(merchantId: string): Promise<string[]> {
+    return this.garmentModel.distinct('consignorId', { merchantId }).exec();
+  }
+
+  // Un cedente opera con el comercio si le consignó al menos una prenda. Usa el índice
+  // {merchantId, consignorId} y corta en el primer documento.
+  async merchantHasConsignor(merchantId: string, consignorId: string): Promise<boolean> {
+    return (await this.garmentModel.exists({ merchantId, consignorId }).exec()) !== null;
+  }
+
   // Solo la primera foto de una prenda, para la carga diferida de miniaturas en los listados.
   // Verifica además que la prenda sea del usuario que la pide (su cedente o su comercio),
   // sin traer el resto de las fotos.

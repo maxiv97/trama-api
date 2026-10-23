@@ -15,7 +15,8 @@ export const GarmentEventSchema = SchemaFactory.createForClass(GarmentEvent);
 @Schema(baseSchemaOptions)
 export class Garment {
   @Prop({ required: true, index: true }) consignorId: string;
-  @Prop({ index: true }) merchantId?: string;
+  // Sin índice simple: lo cubren como prefijo los índices compuestos {merchantId, …} de abajo.
+  @Prop() merchantId?: string;
   // Código legible para que el comercio identifique/busque la prenda (TRA-00001).
   @Prop({ unique: true, sparse: true }) code?: string;
   @Prop({ required: true }) name: string;
@@ -36,3 +37,7 @@ export class Garment {
 }
 export type GarmentDocument = HydratedDocument<Garment>;
 export const GarmentSchema = SchemaFactory.createForClass(Garment);
+// Reportes, panel e inventario filtran por comercio y estado; el directorio de cedentes y la
+// verificación de pertenencia, por comercio y cedente.
+GarmentSchema.index({ merchantId: 1, status: 1 });
+GarmentSchema.index({ merchantId: 1, consignorId: 1 });

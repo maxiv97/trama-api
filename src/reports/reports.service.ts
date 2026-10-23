@@ -21,6 +21,10 @@ import { SummaryKpis, SummaryReport, WeeklyPoint } from './summary';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+function uniqueIds(ids: (string | undefined)[]): string[] {
+  return [...new Set(ids.filter((id): id is string => !!id))];
+}
+
 const ACCEPTED_STATUSES: GarmentStatus[] = [
   'agreed',
   'in_stock',
@@ -86,7 +90,9 @@ export class ReportsService {
     const receptions = (await this.receptions.byGarmentIds([...garmentById.keys()])).filter(
       (r) => r.discrepancies.length > 0 && dateInRange(r.receivedAt, filters),
     );
-    const consignors = await this.users.consignorSummaries();
+    const consignors = await this.users.consignorSummaries(
+      uniqueIds(receptions.map((r) => garmentById.get(r.garmentId)?.consignorId)),
+    );
     const consignorName = new Map(consignors.map((c) => [c.id, c.name]));
     const now = Date.now();
 
@@ -349,7 +355,9 @@ export class ReportsService {
     );
     const agreements = await this.agreements.listForUser('merchant', merchantId);
     const agreementByGarment = new Map(agreements.map((a) => [a.garmentId, a]));
-    const consignors = await this.users.consignorSummaries();
+    const consignors = await this.users.consignorSummaries(
+      uniqueIds(inStock.map((garment) => garment.consignorId)),
+    );
     const consignorById = new Map(consignors.map((c) => [c.id, c]));
 
     const now = new Date();

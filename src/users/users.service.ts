@@ -162,8 +162,14 @@ export class UsersService {
     return this.merchantModel.findById(id).exec();
   }
 
-  async merchantSummaries(): Promise<MerchantSummary[]> {
-    const merchants = await this.merchantModel.find().exec();
+  // Con `ids`, trae solo esos comercios (y solo los campos del resumen) en lugar de toda la
+  // colección: los reportes y liquidaciones nunca necesitan más que las contrapartes involucradas.
+  async merchantSummaries(ids?: string[]): Promise<MerchantSummary[]> {
+    if (ids && ids.length === 0) return [];
+    const filter = ids ? { _id: { $in: ids } } : {};
+    const merchants = await this.merchantModel
+      .find(filter, { name: 1, businessName: 1, 'terms.payoutDay': 1 })
+      .exec();
     return merchants.map((merchant) => ({
       id: merchant.id,
       name: merchant.get('name') as string,
@@ -172,8 +178,13 @@ export class UsersService {
     }));
   }
 
-  async consignorSummaries(): Promise<ConsignorSummary[]> {
-    const consignors = await this.consignorModel.find().exec();
+  // Igual que merchantSummaries: con `ids` evita escanear a todos los cedentes de la base.
+  async consignorSummaries(ids?: string[]): Promise<ConsignorSummary[]> {
+    if (ids && ids.length === 0) return [];
+    const filter = ids ? { _id: { $in: ids } } : {};
+    const consignors = await this.consignorModel
+      .find(filter, { name: 1, dni: 1, bankDetails: 1 })
+      .exec();
     return consignors.map((consignor) => ({
       id: consignor.id,
       name: consignor.get('name') as string,
