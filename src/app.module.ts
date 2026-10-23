@@ -21,6 +21,7 @@ import { ReportsModule } from './reports/reports.module';
 import { SalesModule } from './sales/sales.module';
 import { SalesPointsModule } from './sales-points/sales-points.module';
 import { SeedModule } from './seed/seed.module';
+import { SupportModule } from './support/support.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -29,7 +30,10 @@ import { UsersModule } from './users/users.module';
     MongooseModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        uri: config.get<string>('MONGODB_URI', 'mongodb://localhost:27017/trama'),
+        uri: config.get<string>(
+          'MONGODB_URI',
+          'mongodb://localhost:27017/trama',
+        ),
       }),
     }),
     UsersModule,
@@ -48,6 +52,7 @@ import { UsersModule } from './users/users.module';
     NotificationsModule,
     PlatformConfigModule,
     SeedModule,
+    SupportModule,
   ],
   controllers: [AppController],
   providers: [

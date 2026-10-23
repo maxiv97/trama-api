@@ -40,8 +40,11 @@ export class AuthController {
     return this.auth.resendCode(user.id);
   }
 
+  // Sesión actual con el email (lo usa el contacto de ayuda para precargar el formulario).
   @Get('me')
-  me(@CurrentUser() user: SessionUser): SessionUser {
-    return user;
+  me(
+    @CurrentUser() user: SessionUser,
+  ): Promise<SessionUser & { email?: string }> {
+    return this.auth.me(user);
   }
 }

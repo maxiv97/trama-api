@@ -13,7 +13,12 @@ const consignorPayload = {
   password: 'secret123',
   dni: '30.555.666',
   bankDetails: 'franco.ledesma.mp',
-  location: { street: 'Caseros', number: '450', neighborhood: 'Alberdi', city: 'Córdoba' },
+  location: {
+    street: 'Caseros',
+    number: '450',
+    neighborhood: 'Alberdi',
+    city: 'Córdoba',
+  },
 };
 
 const merchantPayload = {
@@ -23,7 +28,12 @@ const merchantPayload = {
   password: 'secret123',
   businessName: 'Segunda Vuelta',
   cuit: '30-71234567-9',
-  location: { neighborhood: 'Cofico', city: 'Córdoba', lat: -31.39, lng: -64.18 },
+  location: {
+    neighborhood: 'Cofico',
+    city: 'Córdoba',
+    lat: -31.39,
+    lng: -64.18,
+  },
   commissionConfig: { consignorPercentage: 40, merchantPercentage: 60 },
   terms: { saleWindowMonths: 3, graceMonths: 1, payoutDay: 10 },
   salesPoint: {
@@ -55,7 +65,9 @@ describe('Auth registration (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api');
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     await app.init();
   }, 120000);
 
@@ -79,7 +91,10 @@ describe('Auth registration (e2e)', () => {
 
     await request(app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email: consignorPayload.email, password: consignorPayload.password })
+      .send({
+        email: consignorPayload.email,
+        password: consignorPayload.password,
+      })
       .expect(201);
   });
 
@@ -93,7 +108,10 @@ describe('Auth registration (e2e)', () => {
 
     const login = await request(app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email: merchantPayload.email, password: merchantPayload.password })
+      .send({
+        email: merchantPayload.email,
+        password: merchantPayload.password,
+      })
       .expect(201);
 
     const me = await request(app.getHttpServer())
@@ -105,6 +123,7 @@ describe('Auth registration (e2e)', () => {
       id: login.body.user.id,
       name: 'Paula Reyes',
       role: 'merchant',
+      email: merchantPayload.email,
     });
 
     const points = await request(app.getHttpServer())

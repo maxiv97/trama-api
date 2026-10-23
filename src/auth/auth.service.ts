@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { MailService } from '../mail/mail.service';
@@ -20,7 +25,10 @@ export class AuthService {
     private readonly mail: MailService,
   ) {}
 
-  async login(email: string, password: string): Promise<{ token: string; user: SessionUser }> {
+  async login(
+    email: string,
+    password: string,
+  ): Promise<{ token: string; user: SessionUser }> {
     const user = await this.users.findByEmailWithPassword(email);
     if (!user || !(await bcrypt.compare(password, user.password))) {
       throw new UnauthorizedException('Credenciales inválidas');
@@ -47,6 +55,11 @@ export class AuthService {
   async verifyEmail(userId: string, code: string): Promise<{ verified: true }> {
     await this.users.verifyEmail(userId, code);
     return { verified: true };
+  }
+
+  async me(user: SessionUser): Promise<SessionUser & { email?: string }> {
+    const doc = await this.users.findById(user.id);
+    return { ...user, email: doc?.email };
   }
 
   async resendCode(userId: string): Promise<{ sent: true }> {
@@ -76,7 +89,11 @@ export class AuthService {
   private async issueSession(
     user: UserDocument,
   ): Promise<{ token: string; user: SessionUser }> {
-    const sessionUser: SessionUser = { id: user.id, name: user.name, role: user.role };
+    const sessionUser: SessionUser = {
+      id: user.id,
+      name: user.name,
+      role: user.role,
+    };
     const token = await this.jwt.signAsync({
       sub: user.id,
       name: user.name,
