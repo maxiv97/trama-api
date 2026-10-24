@@ -42,6 +42,12 @@ export class ReportsController {
     return this.reports.consignorPerformance(user.id, toReportFilters(filters));
   }
 
+  @Get('expiry-outcomes')
+  @Roles('merchant')
+  expiryOutcomes(@CurrentUser() user: SessionUser, @Query() filters: ReportFiltersDto) {
+    return this.reports.expiryOutcomes(user.id, toReportFilters(filters));
+  }
+
   @Get('discrepancies')
   @Roles('merchant')
   discrepancies(@CurrentUser() user: SessionUser, @Query() filters: ReportFiltersDto) {
