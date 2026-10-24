@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AgreementsModule } from '../agreements/agreements.module';
 import { GarmentsModule } from '../garments/garments.module';
 import { SalesPointsModule } from '../sales-points/sales-points.module';
+import { UsersModule } from '../users/users.module';
 import { ReceptionsController } from './receptions.controller';
 import { ReceptionsService } from './receptions.service';
 import { Reception, ReceptionSchema } from './schemas/reception.schema';
@@ -13,6 +14,7 @@ import { Reception, ReceptionSchema } from './schemas/reception.schema';
     GarmentsModule,
     AgreementsModule,
     SalesPointsModule,
+    UsersModule,
   ],
   controllers: [ReceptionsController],
   providers: [ReceptionsService],

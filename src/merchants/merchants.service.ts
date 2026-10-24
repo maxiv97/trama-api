@@ -27,7 +27,12 @@ export class MerchantsService {
     merchant.set('phone', dto.phone);
     merchant.set('location', dto.location);
     merchant.commissionConfig = dto.commissionConfig;
-    merchant.terms = dto.terms;
+    merchant.terms = {
+      saleWindowMonths: dto.terms.saleWindowMonths,
+      deliveryDays: dto.terms.deliveryDays ?? merchant.terms.deliveryDays,
+      pickupDays: dto.terms.pickupDays ?? merchant.terms.pickupDays,
+      payoutDay: dto.terms.payoutDay,
+    };
     await merchant.save();
     return merchant;
   }

@@ -8,6 +8,7 @@ import { Garment } from '../garments/schemas/garment.schema';
 import { Notification } from '../notifications/schemas/notification.schema';
 import { Proposal } from '../proposals/schemas/proposal.schema';
 import { Reception } from '../receptions/schemas/reception.schema';
+import { GarmentReturn } from '../returns/schemas/return.schema';
 import { Sale } from '../sales/schemas/sale.schema';
 import { CategoriesService } from '../categories/categories.service';
 import { Consignor } from '../users/schemas/consignor.schema';
@@ -59,6 +60,8 @@ export class SeedService {
     private readonly receptionModel: Model<Reception>,
     @InjectModel(Notification.name)
     private readonly notificationModel: Model<Notification>,
+    @InjectModel(GarmentReturn.name)
+    private readonly returnModel: Model<GarmentReturn>,
     private readonly categories: CategoriesService,
   ) {}
 
@@ -122,7 +125,7 @@ export class SeedService {
       },
       businessName: 'Trama Boutique',
       commissionConfig: { consignorPercentage: 30, merchantPercentage: 70 },
-      terms: { saleWindowMonths: 3, graceMonths: 1, payoutDay: 20 },
+      terms: { saleWindowMonths: 3, deliveryDays: 7, pickupDays: 15, payoutDay: 20 },
       password,
       salesPoints: [
         {
@@ -167,7 +170,7 @@ export class SeedService {
       },
       businessName: 'Vintage Córdoba',
       commissionConfig: { consignorPercentage: 40, merchantPercentage: 60 },
-      terms: { saleWindowMonths: 3, graceMonths: 1, payoutDay: 15 },
+      terms: { saleWindowMonths: 3, deliveryDays: 7, pickupDays: 15, payoutDay: 15 },
       password,
       salesPoints: [
         {
@@ -198,6 +201,7 @@ export class SeedService {
       this.agreementModel.deleteMany({}),
       this.saleModel.deleteMany({}),
       this.notificationModel.deleteMany({}),
+      this.returnModel.deleteMany({}),
     ]);
 
     const merchantId = userByKey.get(MERCHANT_KEY);
@@ -386,6 +390,19 @@ export class SeedService {
       );
     }
 
+    if (dataset.returns.length) {
+      const garmentByDemoKey = new Map(dataset.garments.map((g) => [g.key, g]));
+      await this.returnModel.create(
+        dataset.returns.map(({ garmentKey, salesPointKey, ...rest }) => ({
+          ...rest,
+          garmentId: garmentByKey.get(garmentKey),
+          merchantId,
+          consignorId: userByKey.get(garmentByDemoKey.get(garmentKey)?.consignorKey ?? ''),
+          salesPointId: salesPointByKey.get(salesPointKey),
+        })) as unknown as GarmentReturn[],
+      );
+    }
+
     if (dataset.notifications.length) {
       await this.notificationModel.create(
         dataset.notifications.map(
@@ -406,7 +423,8 @@ export class SeedService {
       `Seeded demo merchant "Segunda Vuelta" — ${DEMO_CONSIGNORS.length} consignors, ` +
         `${dataset.garments.length} garments, ${dataset.proposals.length} proposals, ` +
         `${dataset.agreements.length} agreements, ${dataset.receptions.length} receptions, ` +
-        `${dataset.sales.length} sales, ${dataset.notifications.length} notifications`,
+        `${dataset.sales.length} sales, ${dataset.returns.length} returns, ` +
+        `${dataset.notifications.length} notifications`,
     );
   }
 
@@ -454,6 +472,7 @@ export class SeedService {
       this.agreementModel.deleteMany({ garmentId: { $in: staleGarmentIds } }),
       this.receptionModel.deleteMany({ garmentId: { $in: staleGarmentIds } }),
       this.saleModel.deleteMany({ garmentId: { $in: staleGarmentIds } }),
+      this.returnModel.deleteMany({ garmentId: { $in: staleGarmentIds } }),
       this.notificationModel.deleteMany({ userId: { $in: staleUserIds } }),
     ]);
     await this.garmentModel.deleteMany({ _id: { $in: staleGarmentIds } });

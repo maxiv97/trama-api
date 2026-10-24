@@ -153,6 +153,9 @@ const SUBJECTS: Record<NotificationType, string> = {
   reception: 'Novedades de la recepción de tu prenda',
   sale: '¡Vendiste una prenda en Trama!',
   payout: 'Tu liquidación en Trama',
+  delivery: 'Novedades sobre la entrega de una prenda',
+  expiry: 'Novedades sobre el período de venta de una prenda',
+  pickup: 'Novedades sobre el retiro de una prenda',
 };
 
 const HEADLINES: Record<NotificationType, string> = {
@@ -162,6 +165,9 @@ const HEADLINES: Record<NotificationType, string> = {
   reception: 'Novedades de la recepción',
   sale: '¡Se vendió tu prenda!',
   payout: 'Liquidación realizada',
+  delivery: 'Plazo de entrega',
+  expiry: 'Período de venta',
+  pickup: 'Retiro de la prenda',
 };
 
 export function subjectForNotification(type: NotificationType): string {

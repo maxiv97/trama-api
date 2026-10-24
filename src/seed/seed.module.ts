@@ -15,6 +15,7 @@ import {
   Reception,
   ReceptionSchema,
 } from '../receptions/schemas/reception.schema';
+import { GarmentReturn, GarmentReturnSchema } from '../returns/schemas/return.schema';
 import { Sale, SaleSchema } from '../sales/schemas/sale.schema';
 import { CategoriesModule } from '../categories/categories.module';
 import { UsersModule } from '../users/users.module';
@@ -32,6 +33,7 @@ import { SeedService } from './seed.service';
       { name: Sale.name, schema: SaleSchema },
       { name: Reception.name, schema: ReceptionSchema },
       { name: Notification.name, schema: NotificationSchema },
+      { name: GarmentReturn.name, schema: GarmentReturnSchema },
     ]),
   ],
   providers: [SeedService],

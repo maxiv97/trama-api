@@ -9,7 +9,12 @@ export type GarmentStatus =
   | 'sold'
   | 'paid_out'
   | 'no_agreement'
-  | 'cancelled';
+  | 'cancelled'
+  // Vencimientos (los detecta la tarea diaria de plazos):
+  | 'delivery_expired' // acordada y no entregada dentro del plazo de entrega (final)
+  | 'awaiting_pickup' // terminó la ventana de venta sin venderse: el cedente debe retirarla
+  | 'returned' // el cedente la retiró y el comercio registró la devolución (final)
+  | 'unclaimed'; // venció el plazo para retirarla (final)
 
 export type GarmentCondition = 'new' | 'very_good' | 'good' | 'fair';
 
@@ -41,4 +46,11 @@ export type NotificationType =
   | 'agreement'
   | 'reception'
   | 'sale'
-  | 'payout';
+  | 'payout'
+  | 'delivery' // plazo de entrega: recordatorio y vencimiento
+  | 'expiry' // ventana de venta: aviso previo y prenda por retirar
+  | 'pickup'; // retiro: recordatorio, devolución registrada y prenda no retirada
+
+// Qué hizo el comercio con una prenda que el cedente no retiró a tiempo (según los Términos).
+export const UNCLAIMED_DISPOSITIONS = ['donated', 'kept', 'other'] as const;
+export type UnclaimedDisposition = (typeof UNCLAIMED_DISPOSITIONS)[number];

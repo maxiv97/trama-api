@@ -136,7 +136,7 @@ describe('Payouts (e2e)', () => {
         phone: '351-3000001',
         location: { neighborhood: 'Nueva Córdoba', city: 'Córdoba' },
         commissionConfig: { consignorPercentage: 30, merchantPercentage: 70 },
-        terms: { saleWindowMonths: 3, graceMonths: 1, payoutDay: 7 },
+        terms: { saleWindowMonths: 3, deliveryDays: 7, pickupDays: 15, payoutDay: 7 },
       })
       .expect(200);
     const res = await request(app.getHttpServer())

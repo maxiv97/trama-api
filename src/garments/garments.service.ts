@@ -28,7 +28,11 @@ import { CategoriesService } from '../categories/categories.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateGarmentDto } from './dto/create-garment.dto';
 import { Counter } from './schemas/counter.schema';
-import { Garment, GarmentDocument } from './schemas/garment.schema';
+import {
+  Garment,
+  GarmentDocument,
+  UnclaimedDispositionRecord,
+} from './schemas/garment.schema';
 
 interface NotificationTemplate {
   type: NotificationType;
@@ -82,6 +86,10 @@ const ACTION_NOTIFICATION: Partial<Record<GarmentAction, NotificationTemplate>> 
   CANCEL: {
     type: 'proposal',
     text: (garment) => `El cedente canceló "${garment.name}".`,
+  },
+  REGISTER_RETURN: {
+    type: 'pickup',
+    text: (garment) => `Registramos que retiraste "${garment.name}". ¡Gracias!`,
   },
 };
 
@@ -211,6 +219,11 @@ export class GarmentsService {
     return this.garmentModel.find({ merchantId }, GarmentsService.META_PROJECTION).exec();
   }
 
+  metaByIds(ids: string[]): Promise<GarmentDocument[]> {
+    if (ids.length === 0) return Promise.resolve([]);
+    return this.garmentModel.find({ _id: { $in: ids } }, GarmentsService.META_PROJECTION).exec();
+  }
+
   // Cedentes que operan con el comercio: la base devuelve solo los ids distintos, sin
   // materializar las prendas.
   consignorIdsByMerchant(merchantId: string): Promise<string[]> {
@@ -256,6 +269,31 @@ export class GarmentsService {
     garment.timeline.push({ date: new Date(), actor, status, note });
     await garment.save();
     await this.notify(garment, action, actor, emailDetails);
+    return garment;
+  }
+
+  // El destino de una prenda no retirada no cambia su estado (No retirada es final): queda
+  // registrado en la prenda y como evento en su historial.
+  async registerDisposition(
+    id: string,
+    record: UnclaimedDispositionRecord,
+    noteForTimeline: string,
+  ): Promise<GarmentDocument> {
+    const garment = await this.getByIdOrFail(id);
+    if (garment.status !== 'unclaimed') {
+      throw new ConflictException('Solo se registra el destino de una prenda no retirada');
+    }
+    if (garment.unclaimedDisposition) {
+      throw new ConflictException('El destino de esta prenda ya fue registrado');
+    }
+    garment.unclaimedDisposition = record;
+    garment.timeline.push({
+      date: record.date,
+      actor: 'merchant',
+      status: garment.status,
+      note: noteForTimeline,
+    });
+    await garment.save();
     return garment;
   }
 

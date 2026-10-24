@@ -1,6 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import type { EventActor, GarmentCondition, GarmentStatus } from '../../shared/domain/enums';
+import type {
+  EventActor,
+  GarmentCondition,
+  GarmentStatus,
+  UnclaimedDisposition,
+} from '../../shared/domain/enums';
 import { baseSchemaOptions } from '../../shared/mongoose/schema-options';
 
 @Schema({ _id: false })
@@ -11,6 +16,16 @@ export class GarmentEvent {
   @Prop() note?: string;
 }
 export const GarmentEventSchema = SchemaFactory.createForClass(GarmentEvent);
+
+// Destino que el comercio registró para una prenda no retirada.
+@Schema({ _id: false })
+export class UnclaimedDispositionRecord {
+  @Prop({ required: true, type: String }) disposition: UnclaimedDisposition;
+  @Prop() note?: string;
+  @Prop({ required: true }) date: Date;
+  @Prop({ required: true }) handledBy: string;
+}
+export const UnclaimedDispositionSchema = SchemaFactory.createForClass(UnclaimedDispositionRecord);
 
 @Schema(baseSchemaOptions)
 export class Garment {
@@ -34,6 +49,7 @@ export class Garment {
   @Prop({ required: true }) createdAt: Date;
   @Prop() salesPointId?: string;
   @Prop({ type: [GarmentEventSchema], default: [] }) timeline: GarmentEvent[];
+  @Prop({ type: UnclaimedDispositionSchema }) unclaimedDisposition?: UnclaimedDispositionRecord;
 }
 export type GarmentDocument = HydratedDocument<Garment>;
 export const GarmentSchema = SchemaFactory.createForClass(Garment);

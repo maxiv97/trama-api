@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { baseSchemaOptions } from '../../shared/mongoose/schema-options';
 import { SalesPoint, SalesPointSchema } from './sales-point.schema';
+import { DEFAULT_DELIVERY_DAYS, DEFAULT_PICKUP_DAYS } from '../../shared/domain/terms';
 
 @Schema({ _id: false })
 export class CommissionConfig {
@@ -13,7 +14,9 @@ export const CommissionConfigSchema = SchemaFactory.createForClass(CommissionCon
 @Schema({ _id: false })
 export class MerchantTerms {
   @Prop({ required: true }) saleWindowMonths: number;
-  @Prop({ required: true }) graceMonths: number;
+  // Reemplazan al período de gracia en meses. El default cubre a los comercios creados antes.
+  @Prop({ required: true, default: DEFAULT_DELIVERY_DAYS }) deliveryDays: number;
+  @Prop({ required: true, default: DEFAULT_PICKUP_DAYS }) pickupDays: number;
   @Prop({ required: true }) payoutDay: number;
 }
 export const MerchantTermsSchema = SchemaFactory.createForClass(MerchantTerms);
