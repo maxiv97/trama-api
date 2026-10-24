@@ -44,6 +44,26 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
+## Datos de demostración y plazos en local
+
+```bash
+# datos base + lote de demostración (comercio "Segunda Vuelta", 12 cedentes, ~110 prendas)
+$ npm run seed:all
+
+# ejecutar en el momento la tarea diaria de plazos (la que corre a las 3:00)
+$ npm run deadlines:run
+
+# simular los próximos días, uno por uno (vencimientos y avisos de cada día)
+$ npm run deadlines:run -- --days 7
+$ npm run deadlines:run -- --until 2026-11-15
+```
+
+Todas las cuentas de demostración usan la contraseña `trama1234`. El comercio es
+`comercio.demo@segundavuelta.app`. La cedente `camila.suarez.demo@trama.app` tiene el recorrido
+de plazos: dos entregas, dos ventas y un retiro vencidos ayer, todavía sin procesar, y tres plazos
+por vencer (entrega mañana, venta en 5 días y retiro en 2 días). La primera ejecución de
+`deadlines:run` los procesa y emite los avisos; `npm run seed:demo` vuelve al punto de partida.
+
 ## Run tests
 
 ```bash

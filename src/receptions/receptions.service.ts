@@ -6,7 +6,9 @@ import { SessionUser } from '../auth/session-user';
 import { GarmentsService } from '../garments/garments.service';
 import { EmailDetail } from '../mail/templates';
 import { SalesPointsService } from '../sales-points/sales-points.service';
+import { UsersService } from '../users/users.service';
 import { ReceptionDiscrepancy, ReceptionResult } from '../shared/domain/enums';
+import { DEFAULT_DELIVERY_DAYS, DEFAULT_PICKUP_DAYS } from '../shared/domain/terms';
 import { formatArs, formatDate } from '../shared/format';
 import { canTransition, GarmentAction } from '../shared/state-machine/garment.state-machine';
 import { CreateReceptionDto } from './dto/create-reception.dto';
@@ -40,6 +42,7 @@ export class ReceptionsService {
     private readonly garments: GarmentsService,
     private readonly agreements: AgreementsService,
     private readonly salesPoints: SalesPointsService,
+    private readonly users: UsersService,
   ) {}
 
   async create(user: SessionUser, dto: CreateReceptionDto): Promise<ReceptionDocument> {
@@ -63,9 +66,34 @@ export class ReceptionsService {
       handledBy: user.name,
     });
     await reception.save();
+    await this.updateDeadlines(dto.garmentId, dto.result, reception.receivedAt, user.id);
     const details = await this.receptionEmailDetails(dto);
     await this.garments.applyAction(dto.garmentId, action, 'merchant', RESULT_NOTE[dto.result], details);
     return reception;
+  }
+
+  // Recibida: empieza la ventana de venta (y después el plazo de retiro). Rechazada: corre un
+  // nuevo plazo de entrega desde el rechazo. Los acuerdos anteriores al 23/10/2026 no tienen los
+  // plazos congelados y toman la configuración vigente del comercio.
+  private async updateDeadlines(
+    garmentId: string,
+    result: ReceptionResult,
+    receivedAt: Date,
+    merchantId: string,
+  ): Promise<void> {
+    const terms = (await this.users.findMerchantById(merchantId))?.terms;
+    if (result === 'rejected') {
+      await this.agreements.restartDelivery(
+        garmentId,
+        receivedAt,
+        terms?.deliveryDays ?? DEFAULT_DELIVERY_DAYS,
+      );
+      return;
+    }
+    await this.agreements.startSaleWindow(garmentId, receivedAt, {
+      saleWindowMonths: terms?.saleWindowMonths ?? 3,
+      pickupDays: terms?.pickupDays ?? DEFAULT_PICKUP_DAYS,
+    });
   }
 
   // What the consignor needs to know per reception result: price/deadline if it went on sale, the
@@ -84,6 +112,13 @@ export class ReceptionsService {
       } catch {
         // Sales point unavailable: keep the reason.
       }
+      const agreement = await this.agreements.byGarment(dto.garmentId).catch(() => null);
+      if (agreement?.deliveryDeadline) {
+        details.push({
+          label: 'Nueva entrega antes del',
+          value: formatDate(agreement.deliveryDeadline),
+        });
+      }
       return details;
     }
 
@@ -95,6 +130,12 @@ export class ReceptionsService {
       if (agreement) {
         details.push({ label: 'Precio de exhibición', value: formatArs(agreement.agreedSalePrice) });
         details.push({ label: 'En venta hasta', value: formatDate(agreement.saleDeadline) });
+        if (agreement.pickupDays) {
+          details.push({
+            label: 'Si no se vende',
+            value: `tenés ${agreement.pickupDays} días para retirarla`,
+          });
+        }
       }
     } catch {
       // Agreement unavailable: keep whatever we have.

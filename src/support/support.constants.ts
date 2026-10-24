@@ -17,7 +17,7 @@ export type SupportMotivo = (typeof SUPPORT_MOTIVOS)[number];
 export const MOTIVO_LABELS: Record<SupportMotivo, string> = {
   cuenta: 'Registro y cuenta',
   recepcion: 'Recepción de prendas',
-  plazos: 'Plazos y período de gracia',
+  plazos: 'Plazos de entrega, venta y retiro',
   precios: 'Precios y comisión',
   liquidaciones: 'Liquidaciones y pagos',
   'no-vendidas': 'Prendas no vendidas y devolución',

@@ -24,7 +24,7 @@ describe('Merchants (e2e)', () => {
     phone: '351-3000001',
     location: { neighborhood: 'Nueva Córdoba', city: 'Córdoba', lat: -31.4281, lng: -64.1888 },
     commissionConfig: { consignorPercentage: 35, merchantPercentage: 65 },
-    terms: { saleWindowMonths: 4, graceMonths: 2, payoutDay: 25 },
+    terms: { saleWindowMonths: 4, deliveryDays: 10, pickupDays: 20, payoutDay: 25 },
   };
 
   beforeAll(async () => {
@@ -94,6 +94,8 @@ describe('Merchants (e2e)', () => {
       .set('Authorization', `Bearer ${merchantToken}`)
       .expect(200);
     expect(after.body.terms.payoutDay).toBe(25);
+    expect(after.body.terms.deliveryDays).toBe(10);
+    expect(after.body.terms.pickupDays).toBe(20);
     expect(after.body.salesPoints).toHaveLength(2);
   });
 
@@ -104,9 +106,32 @@ describe('Merchants (e2e)', () => {
       .send({
         ...editableBody,
         commissionConfig: { consignorPercentage: 150, merchantPercentage: -50 },
-        terms: { saleWindowMonths: 4, graceMonths: 2, payoutDay: 35 },
+        terms: { saleWindowMonths: 4, deliveryDays: 10, pickupDays: 20, payoutDay: 35 },
       })
       .expect(400);
+  });
+
+  it('rejects delivery and pickup days out of range', async () => {
+    for (const terms of [
+      { saleWindowMonths: 4, deliveryDays: 0, pickupDays: 20, payoutDay: 10 },
+      { saleWindowMonths: 4, deliveryDays: 10, pickupDays: 61, payoutDay: 10 },
+    ]) {
+      await request(app.getHttpServer())
+        .patch(`/api/merchants/${merchantId}`)
+        .set('Authorization', `Bearer ${merchantToken}`)
+        .send({ ...editableBody, terms })
+        .expect(400);
+    }
+  });
+
+  it('keeps the current delivery and pickup days when the client does not send them', async () => {
+    const res = await request(app.getHttpServer())
+      .patch(`/api/merchants/${merchantId}`)
+      .set('Authorization', `Bearer ${merchantToken}`)
+      .send({ ...editableBody, terms: { saleWindowMonths: 4, payoutDay: 25 } })
+      .expect(200);
+    expect(res.body.terms.deliveryDays).toBe(10);
+    expect(res.body.terms.pickupDays).toBe(20);
   });
 
   it('forbids editing another merchant', async () => {

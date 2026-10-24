@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable } from '@nestjs/comm
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
 import { Model } from 'mongoose';
+import { DEFAULT_DELIVERY_DAYS, DEFAULT_PICKUP_DAYS } from '../shared/domain/terms';
 import { Consignor, ConsignorDocument } from './schemas/consignor.schema';
 import { Merchant, MerchantDocument } from './schemas/merchant.schema';
 import { User, UserDocument, UserLocation } from './schemas/user.schema';
@@ -48,7 +49,7 @@ export interface CreateMerchantInput {
   cuit: string;
   location: UserLocation;
   commissionConfig: { consignorPercentage: number; merchantPercentage: number };
-  terms: { saleWindowMonths: number; graceMonths: number; payoutDay: number };
+  terms: { saleWindowMonths: number; deliveryDays?: number; pickupDays?: number; payoutDay: number };
   salesPoint: CreateSalesPointInput;
 }
 
@@ -105,7 +106,12 @@ export class UsersService {
       businessName: input.businessName,
       cuit: input.cuit,
       commissionConfig: input.commissionConfig,
-      terms: input.terms,
+      terms: {
+        saleWindowMonths: input.terms.saleWindowMonths,
+        deliveryDays: input.terms.deliveryDays ?? DEFAULT_DELIVERY_DAYS,
+        pickupDays: input.terms.pickupDays ?? DEFAULT_PICKUP_DAYS,
+        payoutDay: input.terms.payoutDay,
+      },
       password,
     } as unknown as Merchant);
     merchant.salesPoints = [
@@ -162,8 +168,14 @@ export class UsersService {
     return this.merchantModel.findById(id).exec();
   }
 
-  async merchantSummaries(): Promise<MerchantSummary[]> {
-    const merchants = await this.merchantModel.find().exec();
+  // Con `ids`, trae solo esos comercios (y solo los campos del resumen) en lugar de toda la
+  // colección: los reportes y liquidaciones nunca necesitan más que las contrapartes involucradas.
+  async merchantSummaries(ids?: string[]): Promise<MerchantSummary[]> {
+    if (ids && ids.length === 0) return [];
+    const filter = ids ? { _id: { $in: ids } } : {};
+    const merchants = await this.merchantModel
+      .find(filter, { name: 1, businessName: 1, 'terms.payoutDay': 1 })
+      .exec();
     return merchants.map((merchant) => ({
       id: merchant.id,
       name: merchant.get('name') as string,
@@ -172,8 +184,13 @@ export class UsersService {
     }));
   }
 
-  async consignorSummaries(): Promise<ConsignorSummary[]> {
-    const consignors = await this.consignorModel.find().exec();
+  // Igual que merchantSummaries: con `ids` evita escanear a todos los cedentes de la base.
+  async consignorSummaries(ids?: string[]): Promise<ConsignorSummary[]> {
+    if (ids && ids.length === 0) return [];
+    const filter = ids ? { _id: { $in: ids } } : {};
+    const consignors = await this.consignorModel
+      .find(filter, { name: 1, dni: 1, bankDetails: 1 })
+      .exec();
     return consignors.map((consignor) => ({
       id: consignor.id,
       name: consignor.get('name') as string,

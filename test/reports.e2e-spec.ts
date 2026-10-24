@@ -69,10 +69,9 @@ describe('Reports (e2e)', () => {
     expect(item.effectiveDeadline).toEqual(expect.any(String));
     expect(typeof item.daysLeft).toBe('number');
     expect(typeof item.overdue).toBe('boolean');
-    // The effective deadline is the sale deadline plus the merchant grace period.
-    expect(new Date(item.effectiveDeadline).getTime()).toBeGreaterThan(
-      new Date(item.saleDeadline).getTime(),
-    );
+    // Since the grace period became the pickup window, the effective deadline is the sale deadline.
+    expect(item.effectiveDeadline).toBe(item.saleDeadline);
+    expect(item.overdue).toBe(false);
   });
 
   it('excludes consignments outside the window', async () => {

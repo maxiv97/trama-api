@@ -24,8 +24,7 @@ export class ConsignorsService {
   }
 
   async byMerchant(merchantId: string): Promise<ConsignorDocument[]> {
-    const garments = await this.garments.metaByMerchant(merchantId);
-    const consignorIds = [...new Set(garments.map((garment) => garment.consignorId))];
+    const consignorIds = await this.garments.consignorIdsByMerchant(merchantId);
     return this.consignorModel.find({ _id: { $in: consignorIds } }).exec();
   }
 
@@ -33,8 +32,7 @@ export class ConsignorsService {
   // prenda); de lo contrario, no tiene por qué acceder a sus datos de contacto.
   async getForMerchantOrFail(id: string, merchantId: string): Promise<ConsignorDocument> {
     const consignor = await this.getByIdOrFail(id);
-    const own = await this.byMerchant(merchantId);
-    if (!own.some((c) => c.id === id)) {
+    if (!(await this.garments.merchantHasConsignor(merchantId, id))) {
       throw new ForbiddenException('El cedente no opera con tu comercio');
     }
     return consignor;

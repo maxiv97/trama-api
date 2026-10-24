@@ -35,7 +35,7 @@ const merchantPayload = {
     lng: -64.18,
   },
   commissionConfig: { consignorPercentage: 40, merchantPercentage: 60 },
-  terms: { saleWindowMonths: 3, graceMonths: 1, payoutDay: 10 },
+  terms: { saleWindowMonths: 3, payoutDay: 10 },
   salesPoint: {
     name: 'Segunda Vuelta Cofico',
     address: 'Jujuy 1200',
@@ -133,6 +133,14 @@ describe('Auth registration (e2e)', () => {
 
     expect(points.body).toHaveLength(1);
     expect(points.body[0].name).toBe('Segunda Vuelta Cofico');
+
+    // Sin plazos de entrega y retiro en el alta, el comercio arranca con los valores por defecto.
+    const merchant = await request(app.getHttpServer())
+      .get(`/api/merchants/${login.body.user.id}`)
+      .set('Authorization', `Bearer ${login.body.token}`)
+      .expect(200);
+    expect(merchant.body.terms.deliveryDays).toBe(7);
+    expect(merchant.body.terms.pickupDays).toBe(15);
   });
 
   it('rejects a duplicate email with 409', async () => {

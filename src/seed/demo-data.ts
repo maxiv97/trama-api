@@ -84,6 +84,12 @@ function daysBefore(now: Date, days: number): Date {
   return addDays(now, -days);
 }
 
+function addMonths(date: Date, months: number): Date {
+  const result = new Date(date);
+  result.setMonth(result.getMonth() + months);
+  return result;
+}
+
 // ---------------------------------------------------------------------------
 // Photos — real, category-appropriate stock photography (Unsplash), picked by
 // hand per category and verified to resolve. Every garment gets 2 distinct
@@ -695,7 +701,11 @@ function pickConsignorFor(rng: Rng, cohort: GarmentStatus): DemoConsignorDef {
   // volume (in_stock/sold/paid_out) skews toward "reliable" ones — but
   // everyone gets some spread so no report shows a mechanical 0%/100%.
   const weights: Record<DemoConsignorDef['reliability'], number> =
-    cohort === 'no_agreement' || cohort === 'rejected' || cohort === 'cancelled'
+    cohort === 'no_agreement' ||
+    cohort === 'rejected' ||
+    cohort === 'cancelled' ||
+    cohort === 'delivery_expired' ||
+    cohort === 'unclaimed'
       ? { reliable: 15, average: 35, risky: 50 }
       : cohort === 'in_stock' ||
           cohort === 'with_remarks' ||
@@ -805,6 +815,12 @@ export interface DemoGarment {
   status: GarmentStatus;
   createdAt: Date;
   timeline: DemoTimelineEvent[];
+  unclaimedDisposition?: {
+    disposition: 'donated' | 'kept' | 'other';
+    note?: string;
+    date: Date;
+    handledBy: string;
+  };
 }
 
 export interface DemoProposal {
@@ -823,6 +839,21 @@ export interface DemoAgreement {
   appliedCommission: number;
   agreedAt: Date;
   saleDeadline: Date;
+  saleWindowMonths: number;
+  deliveryDays: number;
+  deliveryDeadline: Date;
+  pickupDays: number;
+  pickupDeadline?: Date;
+  notices: string[];
+}
+
+export interface DemoReturn {
+  garmentKey: string;
+  salesPointKey: string;
+  returnedAt: Date;
+  identityChecked: boolean;
+  receiptNumber: string;
+  handledBy: string;
 }
 
 export interface DemoReception {
@@ -863,6 +894,7 @@ export interface DemoDataset {
   agreements: DemoAgreement[];
   receptions: DemoReception[];
   sales: DemoSale[];
+  returns: DemoReturn[];
   notifications: DemoNotification[];
 }
 
@@ -875,9 +907,13 @@ export const DEMO_MERCHANT_KEY = 'mer-demo';
 export const DEMO_MERCHANT_EMAIL = 'comercio.demo@segundavuelta.app';
 export const DEMO_CONSIGNOR_PERCENTAGE = 65;
 export const DEMO_MERCHANT_PERCENTAGE = 35;
+// Ventana de venta de 6 meses (no 3) para que el stock tenga prendas en todos los tramos de
+// antigüedad del reporte de rotación sin quedar fuera de plazo: con la tarea de plazos activa, una
+// prenda en stock con la venta vencida pasa sola a Por retirar.
 export const DEMO_TERMS = {
-  saleWindowMonths: 3,
-  graceMonths: 1,
+  saleWindowMonths: 6,
+  deliveryDays: 7,
+  pickupDays: 15,
   payoutDay: 20,
 };
 
@@ -895,10 +931,14 @@ const COHORTS: Cohort[] = [
   { status: 'submitted', count: 1, minDaysAgo: 0, maxDaysAgo: 0 },
   { status: 'under_review', count: 7, minDaysAgo: 0, maxDaysAgo: 6 },
   { status: 'counteroffer', count: 5, minDaysAgo: 1, maxDaysAgo: 10 },
-  { status: 'agreed', count: 6, minDaysAgo: 3, maxDaysAgo: 22 },
+  // Acordadas hace 0 a 6 días: siguen dentro del plazo de entrega de 7 días.
+  { status: 'agreed', count: 6, minDaysAgo: 7, maxDaysAgo: 7 },
   { status: 'no_agreement', count: 5, minDaysAgo: 5, maxDaysAgo: 150 },
   { status: 'cancelled', count: 3, minDaysAgo: 5, maxDaysAgo: 150 },
-  { status: 'rejected', count: 4, minDaysAgo: 10, maxDaysAgo: 150 },
+  // Rechazadas en la recepción en los últimos días: corre el plazo de la nueva entrega.
+  { status: 'rejected', count: 2, minDaysAgo: 10, maxDaysAgo: 14 },
+  // No entregadas a tiempo (la mitad, después de una recepción rechazada).
+  { status: 'delivery_expired', count: 4, minDaysAgo: 25, maxDaysAgo: 150 },
   // in_stock / with_remarks ages are split explicitly below to hit every
   // rotation.stockAging bucket (0-15, 16-30, 31-45, 46-60, 61-90, 91-120, +120).
   { status: 'in_stock', count: 5, minDaysAgo: 3, maxDaysAgo: 15 },
@@ -908,17 +948,18 @@ const COHORTS: Cohort[] = [
   { status: 'in_stock', count: 4, minDaysAgo: 61, maxDaysAgo: 90 },
   { status: 'in_stock', count: 2, minDaysAgo: 91, maxDaysAgo: 120 },
   { status: 'in_stock', count: 2, minDaysAgo: 121, maxDaysAgo: 150 },
-  // Deliberately past the 3-month sale window + 1-month grace (~122 days),
-  // so `reports/expiring` always has a guaranteed "overdue" example — the
-  // 91-150 range above is too close to that boundary to guarantee one.
-  { status: 'in_stock', count: 2, minDaysAgo: 155, maxDaysAgo: 200 },
-  // And a couple sitting just inside the window, so `expiring` also has a
-  // guaranteed "coming up soon" example rather than only overdue ones.
-  { status: 'in_stock', count: 2, minDaysAgo: 106, maxDaysAgo: 114 },
+  // A couple sitting just inside the 6-month window, so `expiring` has a
+  // guaranteed "coming up soon" example (the sale deadline lands within ~30 days).
+  { status: 'in_stock', count: 2, minDaysAgo: 172, maxDaysAgo: 178 },
+  // Sin vender al terminar la ventana: por retirar, retiradas y no retiradas. Las fechas de
+  // recepción se calculan hacia atrás desde el vencimiento (ver buildGarment).
+  { status: 'awaiting_pickup', count: 3, minDaysAgo: 215, maxDaysAgo: 225 },
+  { status: 'returned', count: 3, minDaysAgo: 240, maxDaysAgo: 250 },
+  { status: 'unclaimed', count: 2, minDaysAgo: 255, maxDaysAgo: 265 },
   { status: 'with_remarks', count: 6, minDaysAgo: 10, maxDaysAgo: 70 },
   { status: 'sold', count: 6, minDaysAgo: 40, maxDaysAgo: 150 }, // unpaid, overdue payout
   { status: 'sold', count: 4, minDaysAgo: 5, maxDaysAgo: 20 }, // unpaid, still within terms
-  { status: 'paid_out', count: 28, minDaysAgo: 35, maxDaysAgo: 175 },
+  { status: 'paid_out', count: 22, minDaysAgo: 35, maxDaysAgo: 175 },
 ];
 
 const CATEGORIES = [...GARMENT_CATEGORY_LABELS];
@@ -1180,16 +1221,21 @@ function buildGarment(
     createdAt: underReviewAt,
     counteroffer: counterofferPayload,
   });
-  const saleDeadline = new Date(agreedAt);
-  saleDeadline.setMonth(saleDeadline.getMonth() + DEMO_TERMS.saleWindowMonths);
-  dataset.agreements.push({
+  // La fecha límite de venta es provisoria hasta la recepción, que la recalcula.
+  const agreement: DemoAgreement = {
     garmentKey: key,
     agreedConsignorPrice: negotiationPrice,
     agreedSalePrice: negotiationSalePrice,
     appliedCommission: DEMO_MERCHANT_PERCENTAGE,
     agreedAt,
-    saleDeadline,
-  });
+    saleDeadline: addMonths(agreedAt, DEMO_TERMS.saleWindowMonths),
+    saleWindowMonths: DEMO_TERMS.saleWindowMonths,
+    deliveryDays: DEMO_TERMS.deliveryDays,
+    deliveryDeadline: addDays(agreedAt, DEMO_TERMS.deliveryDays),
+    pickupDays: DEMO_TERMS.pickupDays,
+    notices: [],
+  };
+  dataset.agreements.push(agreement);
   notify(dataset, {
     userKey: consignor.key,
     garmentKey: key,
@@ -1207,13 +1253,48 @@ function buildGarment(
     return;
   }
 
+  // No entregada a tiempo: la mitad ni siquiera llegó al local; la otra mitad llegó, se rechazó
+  // en la recepción y no se volvió a entregar dentro del nuevo plazo.
+  const expiresAfterRejection =
+    cohort.status === 'delivery_expired' && rng() < 0.5;
+  if (cohort.status === 'delivery_expired' && !expiresAfterRejection) {
+    expireDelivery(dataset, garment, agreement, consignor.key, now);
+    return;
+  }
+
   // Reception: rejected cohort always rejects; everyone else gets a mostly
   // clean reception, with a chance of remarks even on garments that go on
   // to sell (feeds the discrepancies report beyond just the terminal cohort).
-  const receivedAt = addDays(agreedAt, randInt(rng, 2, 8));
+  let receivedAt = addDays(agreedAt, randInt(rng, 2, 8));
   const receiptNumber = `REC-${key.toUpperCase()}`;
 
+  // Las rechazadas que siguen esperando la nueva entrega se rechazaron hace pocos días, para que
+  // el plazo de la nueva entrega (7 días desde el rechazo) siga corriendo.
   if (cohort.status === 'rejected') {
+    const recent = daysBefore(now, randInt(rng, 1, 5));
+    const earliest = addDays(agreedAt, 1);
+    receivedAt = recent > earliest ? recent : earliest;
+  }
+
+  // Sin vender: se elige primero el vencimiento de la venta y la recepción queda 6 meses antes.
+  const unsold =
+    cohort.status === 'awaiting_pickup' ||
+    cohort.status === 'returned' ||
+    cohort.status === 'unclaimed';
+  if (unsold) {
+    const saleEndedDaysAgo =
+      cohort.status === 'awaiting_pickup'
+        ? randInt(rng, 1, 10)
+        : cohort.status === 'returned'
+          ? randInt(rng, 20, 40)
+          : randInt(rng, 30, 50);
+    receivedAt = addMonths(
+      daysBefore(now, saleEndedDaysAgo),
+      -DEMO_TERMS.saleWindowMonths,
+    );
+  }
+
+  if (cohort.status === 'rejected' || expiresAfterRejection) {
     const discCount = randInt(rng, 1, 2);
     const discrepancies = sampleDiscrepancies(rng, discCount);
     garment.timeline.push({
@@ -1242,8 +1323,20 @@ function buildGarment(
       date: receivedAt,
       now,
     });
+    agreement.deliveryDeadline = addDays(receivedAt, DEMO_TERMS.deliveryDays);
+    if (expiresAfterRejection) {
+      dataset.garments.pop(); // se vuelve a agregar con su desenlace
+      expireDelivery(dataset, garment, agreement, consignor.key, now);
+    }
     return;
   }
+
+  // Recibida: la ventana de venta corre desde la recepción y, después, el plazo de retiro.
+  agreement.saleDeadline = addMonths(receivedAt, DEMO_TERMS.saleWindowMonths);
+  agreement.pickupDeadline = addDays(
+    agreement.saleDeadline,
+    DEMO_TERMS.pickupDays,
+  );
 
   const isWithRemarksTerminal = cohort.status === 'with_remarks';
   const hasRemarksAtReception = isWithRemarksTerminal || rng() < 0.12;
@@ -1291,6 +1384,19 @@ function buildGarment(
 
   if (cohort.status === 'in_stock' || cohort.status === 'with_remarks') {
     dataset.garments.push(garment);
+    return;
+  }
+
+  if (unsold) {
+    finishUnsold(
+      rng,
+      dataset,
+      garment,
+      agreement,
+      consignor.key,
+      salesPoint.key,
+      now,
+    );
     return;
   }
 
@@ -1374,6 +1480,343 @@ function buildGarment(
   });
 }
 
+// Acordada (o rechazada en la recepción) que no se entregó dentro del plazo.
+function expireDelivery(
+  dataset: DemoDataset,
+  garment: DemoGarment,
+  agreement: DemoAgreement,
+  consignorKey: string,
+  now: Date,
+): void {
+  const expiredAt = agreement.deliveryDeadline;
+  garment.status = 'delivery_expired';
+  garment.timeline.push({
+    date: expiredAt,
+    actor: 'system',
+    status: 'delivery_expired',
+    note: 'Venció el plazo de entrega',
+  });
+  agreement.notices.push('delivery_expired');
+  dataset.garments.push(garment);
+  notify(dataset, {
+    userKey: consignorKey,
+    garmentKey: garment.key,
+    base: '/c',
+    type: 'delivery',
+    text: `Venció el plazo para entregar "${garment.name}". El acuerdo quedó sin efecto.`,
+    date: expiredAt,
+    now,
+  });
+}
+
+// Recibida y sin vender al terminar la ventana: por retirar y, según el caso, retirada por el
+// cedente o no retirada dentro del plazo (con el destino que registró el comercio).
+function finishUnsold(
+  rng: Rng,
+  dataset: DemoDataset,
+  garment: DemoGarment,
+  agreement: DemoAgreement,
+  consignorKey: string,
+  salesPointKey: string,
+  now: Date,
+): void {
+  const saleEnded = agreement.saleDeadline;
+  const pickupDeadline = agreement.pickupDeadline as Date;
+  garment.timeline.push({
+    date: saleEnded,
+    actor: 'system',
+    status: 'awaiting_pickup',
+    note: 'Terminó el período de venta',
+  });
+  agreement.notices.push('sale_expired');
+  notify(dataset, {
+    userKey: consignorKey,
+    garmentKey: garment.key,
+    base: '/c',
+    type: 'expiry',
+    text: `"${garment.name}" no se vendió. Retirala antes del ${pickupDeadline.toLocaleDateString('es-AR')}.`,
+    date: saleEnded,
+    now,
+  });
+
+  if (garment.status === 'returned') {
+    const returnedAt = addDays(
+      saleEnded,
+      randInt(rng, 1, DEMO_TERMS.pickupDays - 2),
+    );
+    garment.timeline.push({
+      date: returnedAt,
+      actor: 'merchant',
+      status: 'returned',
+      note: 'Retirada por el cedente',
+    });
+    dataset.returns.push({
+      garmentKey: garment.key,
+      salesPointKey,
+      returnedAt,
+      identityChecked: true,
+      receiptNumber: `DEV-${garment.key.toUpperCase()}`,
+      handledBy: 'Encargado/a de local',
+    });
+    notify(dataset, {
+      userKey: consignorKey,
+      garmentKey: garment.key,
+      base: '/c',
+      type: 'pickup',
+      text: `Registramos que retiraste "${garment.name}". ¡Gracias!`,
+      date: returnedAt,
+      now,
+    });
+  }
+
+  if (garment.status === 'unclaimed') {
+    garment.timeline.push({
+      date: pickupDeadline,
+      actor: 'system',
+      status: 'unclaimed',
+      note: 'Venció el plazo para retirarla',
+    });
+    agreement.notices.push('unclaimed');
+    // Una de las no retiradas ya tiene el destino registrado; la otra queda pendiente.
+    if (
+      !dataset.garments.some(
+        (g) => g.status === 'unclaimed' && g.unclaimedDisposition,
+      )
+    ) {
+      const date = addDays(pickupDeadline, 3);
+      garment.unclaimedDisposition = {
+        disposition: 'donated',
+        date,
+        handledBy: 'Encargado/a de local',
+      };
+      garment.timeline.push({
+        date,
+        actor: 'merchant',
+        status: 'unclaimed',
+        note: 'Destino: Donada',
+      });
+    }
+  }
+
+  dataset.garments.push(garment);
+}
+
+// ---------------------------------------------------------------------------
+// Recorrido de plazos: prendas de una misma cedente con fechas fijas respecto del día en que corre
+// el seed, para ver en local cada vencimiento y cada aviso de la tarea diaria de plazos. El seed
+// las deja tal como estarían a la madrugada anterior a la tarea: con el plazo ya vencido (o por
+// vencer) pero todavía sin procesar. `npm run deadlines:run` las procesa en el momento.
+// ---------------------------------------------------------------------------
+
+export const DEMO_DEADLINES_CONSIGNOR_KEY = 'dc-1';
+export const DEMO_DEADLINES_SALES_POINT_KEY = 'dsp-nc';
+
+type DeadlineField = 'deliveryDeadline' | 'saleDeadline' | 'pickupDeadline';
+
+interface DeadlineScenario {
+  // Qué se ve al ejecutar la tarea.
+  label: string;
+  // Estado con el que se arma la prenda (las por retirar se arman en stock y se cierran después).
+  base: 'agreed' | 'rejected' | 'in_stock';
+  // Estado final que deja el seed.
+  status: 'agreed' | 'rejected' | 'in_stock' | 'awaiting_pickup';
+  field: DeadlineField;
+  // Días desde hoy hasta el plazo (negativo: ya venció).
+  inDays: number;
+}
+
+export const DEMO_DEADLINE_SCENARIOS: DeadlineScenario[] = [
+  {
+    label: 'Entrega vencida ayer: pasa a Entrega vencida',
+    base: 'agreed',
+    status: 'agreed',
+    field: 'deliveryDeadline',
+    inDays: -1,
+  },
+  {
+    label:
+      'Nueva entrega (tras un rechazo) vencida ayer: pasa a Entrega vencida',
+    base: 'rejected',
+    status: 'rejected',
+    field: 'deliveryDeadline',
+    inDays: -1,
+  },
+  {
+    label:
+      'Venta terminada ayer: pasa a Por retirar (aviso agrupado con la siguiente)',
+    base: 'in_stock',
+    status: 'in_stock',
+    field: 'saleDeadline',
+    inDays: -1,
+  },
+  {
+    label:
+      'Venta terminada ayer: pasa a Por retirar (aviso agrupado con la anterior)',
+    base: 'in_stock',
+    status: 'in_stock',
+    field: 'saleDeadline',
+    inDays: -1,
+  },
+  {
+    label: 'Plazo para retirar vencido ayer: pasa a No retirada',
+    base: 'in_stock',
+    status: 'awaiting_pickup',
+    field: 'pickupDeadline',
+    inDays: -1,
+  },
+  {
+    label: 'Entrega que vence mañana: recordatorio de entrega',
+    base: 'agreed',
+    status: 'agreed',
+    field: 'deliveryDeadline',
+    inDays: 1,
+  },
+  {
+    label: 'Venta que termina en 5 días: recordatorio de fin de venta',
+    base: 'in_stock',
+    status: 'in_stock',
+    field: 'saleDeadline',
+    inDays: 5,
+  },
+  {
+    label: 'Retiro que vence en 2 días: recordatorio de retiro',
+    base: 'in_stock',
+    status: 'awaiting_pickup',
+    field: 'pickupDeadline',
+    inDays: 2,
+  },
+];
+
+// Edad de partida de cada estado base: la que usan las cohortes equivalentes.
+const SCENARIO_BASE_AGE: Record<DeadlineScenario['base'], [number, number]> = {
+  agreed: [7, 7],
+  rejected: [10, 14],
+  in_stock: [172, 178],
+};
+
+function buildDeadlineScenarios(now: Date, dataset: DemoDataset): void {
+  // Generador propio: las cohortes de arriba no cambian por agregar estas prendas.
+  const rng = mulberry32(20261023);
+  for (const scenario of DEMO_DEADLINE_SCENARIOS) {
+    const [minDaysAgo, maxDaysAgo] = SCENARIO_BASE_AGE[scenario.base];
+    buildGarment(
+      rng,
+      now,
+      { status: scenario.base, count: 1, minDaysAgo, maxDaysAgo },
+      dataset,
+    );
+    const garment = dataset.garments[dataset.garments.length - 1];
+    const agreement = dataset.agreements.find(
+      (a) => a.garmentKey === garment.key,
+    ) as DemoAgreement;
+    retarget(
+      dataset,
+      garment,
+      DEMO_DEADLINES_CONSIGNOR_KEY,
+      DEMO_DEADLINES_SALES_POINT_KEY,
+    );
+
+    // Se corre toda la historia de la prenda para que el plazo caiga en el día buscado.
+    const target = addDays(now, scenario.inDays);
+    const current =
+      scenario.field === 'pickupDeadline'
+        ? addDays(agreement.saleDeadline, DEMO_TERMS.pickupDays)
+        : agreement[scenario.field];
+    shiftGarment(
+      dataset,
+      garment,
+      agreement,
+      target.getTime() - current.getTime(),
+    );
+
+    if (scenario.status === 'awaiting_pickup') {
+      dataset.garments.pop(); // finishUnsold la vuelve a agregar con su desenlace
+      garment.status = 'awaiting_pickup';
+      finishUnsold(
+        rng,
+        dataset,
+        garment,
+        agreement,
+        garment.consignorKey,
+        garment.salesPointKey,
+        now,
+      );
+    }
+    assertNotInFuture(garment, dataset, now);
+  }
+}
+
+// Asigna la prenda a la cedente y al punto de venta del recorrido.
+function retarget(
+  dataset: DemoDataset,
+  garment: DemoGarment,
+  consignorKey: string,
+  salesPointKey: string,
+): void {
+  const previous = garment.consignorKey;
+  garment.consignorKey = consignorKey;
+  garment.salesPointKey = salesPointKey;
+  for (const n of dataset.notifications) {
+    if (n.garmentKey === garment.key && n.userKey === previous)
+      n.userKey = consignorKey;
+  }
+  for (const r of dataset.receptions) {
+    if (r.garmentKey === garment.key) r.salesPointKey = salesPointKey;
+  }
+}
+
+function shiftDate(date: Date, ms: number): Date {
+  return new Date(date.getTime() + ms);
+}
+
+// Desplaza en el tiempo todas las fechas de una prenda (y de sus registros asociados).
+function shiftGarment(
+  dataset: DemoDataset,
+  garment: DemoGarment,
+  agreement: DemoAgreement,
+  ms: number,
+): void {
+  garment.createdAt = shiftDate(garment.createdAt, ms);
+  for (const event of garment.timeline) event.date = shiftDate(event.date, ms);
+  for (const p of dataset.proposals) {
+    if (p.garmentKey !== garment.key) continue;
+    p.createdAt = shiftDate(p.createdAt, ms);
+    if (p.counteroffer)
+      p.counteroffer.date = shiftDate(p.counteroffer.date, ms);
+  }
+  agreement.agreedAt = shiftDate(agreement.agreedAt, ms);
+  agreement.saleDeadline = shiftDate(agreement.saleDeadline, ms);
+  agreement.deliveryDeadline = shiftDate(agreement.deliveryDeadline, ms);
+  if (agreement.pickupDeadline)
+    agreement.pickupDeadline = shiftDate(agreement.pickupDeadline, ms);
+  for (const r of dataset.receptions) {
+    if (r.garmentKey === garment.key)
+      r.receivedAt = shiftDate(r.receivedAt, ms);
+  }
+  for (const n of dataset.notifications) {
+    if (n.garmentKey === garment.key) n.date = shiftDate(n.date, ms);
+  }
+}
+
+function assertNotInFuture(
+  garment: DemoGarment,
+  dataset: DemoDataset,
+  now: Date,
+): void {
+  const dates = [
+    garment.createdAt,
+    ...garment.timeline.map((e) => e.date),
+    ...dataset.notifications
+      .filter((n) => n.garmentKey === garment.key)
+      .map((n) => n.date),
+  ];
+  if (dates.some((d) => d.getTime() > now.getTime())) {
+    throw new Error(
+      `Recorrido de plazos: la prenda ${garment.key} quedó con fechas futuras`,
+    );
+  }
+}
+
 function sampleDiscrepancies(rng: Rng, count: number): ReceptionDiscrepancy[] {
   const shuffled = [...DISCREPANCY_TYPES].sort(() => rng() - 0.5);
   return shuffled.slice(0, count);
@@ -1423,6 +1866,7 @@ export function buildDemoDataset(now: Date = new Date()): DemoDataset {
     agreements: [],
     receptions: [],
     sales: [],
+    returns: [],
     notifications: [],
   };
   for (const cohort of COHORTS) {
@@ -1430,5 +1874,6 @@ export function buildDemoDataset(now: Date = new Date()): DemoDataset {
       buildGarment(rng, now, cohort, dataset);
     }
   }
+  buildDeadlineScenarios(now, dataset);
   return dataset;
 }

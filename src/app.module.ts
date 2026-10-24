@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AgreementsModule } from './agreements/agreements.module';
@@ -10,6 +11,7 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { CategoriesModule } from './categories/categories.module';
 import { ConsignorsModule } from './consignors/consignors.module';
+import { DeadlinesModule } from './deadlines/deadlines.module';
 import { GarmentsModule } from './garments/garments.module';
 import { MerchantsModule } from './merchants/merchants.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -18,6 +20,7 @@ import { PlatformConfigModule } from './platform-config/platform-config.module';
 import { ProposalsModule } from './proposals/proposals.module';
 import { ReceptionsModule } from './receptions/receptions.module';
 import { ReportsModule } from './reports/reports.module';
+import { ReturnsModule } from './returns/returns.module';
 import { SalesModule } from './sales/sales.module';
 import { SalesPointsModule } from './sales-points/sales-points.module';
 import { SeedModule } from './seed/seed.module';
@@ -27,6 +30,7 @@ import { UsersModule } from './users/users.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     MongooseModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -43,6 +47,8 @@ import { UsersModule } from './users/users.module';
     AgreementsModule,
     ProposalsModule,
     ReceptionsModule,
+    ReturnsModule,
+    DeadlinesModule,
     SalesModule,
     SalesPointsModule,
     MerchantsModule,

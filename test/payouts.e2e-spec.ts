@@ -123,6 +123,30 @@ describe('Payouts (e2e)', () => {
     expect(res.body.some((g: { counterpartName: string }) => g.counterpartName === 'Trama Boutique')).toBe(true);
   });
 
+  // Los resúmenes de comercio se consultan con proyección: el día de pago configurado tiene que
+  // seguir llegando al cálculo del vencimiento (si se perdiera, caería al 20 por defecto).
+  it('uses the merchant configured payout day for the due date', async () => {
+    await soldGarment();
+    await request(app.getHttpServer())
+      .patch(`/api/merchants/${merchantId}`)
+      .set('Authorization', `Bearer ${merchantToken}`)
+      .send({
+        businessName: 'Trama Boutique',
+        email: 'contacto@tramaboutique.com',
+        phone: '351-3000001',
+        location: { neighborhood: 'Nueva Córdoba', city: 'Córdoba' },
+        commissionConfig: { consignorPercentage: 30, merchantPercentage: 70 },
+        terms: { saleWindowMonths: 3, deliveryDays: 7, pickupDays: 15, payoutDay: 7 },
+      })
+      .expect(200);
+    const res = await request(app.getHttpServer())
+      .get('/api/payouts/monthly')
+      .set('Authorization', `Bearer ${merchantToken}`)
+      .expect(200);
+    const group = res.body.find((g: { month: string }) => g.month === soldMonth);
+    expect(new Date(group.dueDate).getUTCDate()).toBe(7);
+  });
+
   it('settles a payout and marks the sale paid', async () => {
     const garmentId = await soldGarment();
     await request(app.getHttpServer())

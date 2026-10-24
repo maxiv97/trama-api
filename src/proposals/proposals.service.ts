@@ -11,7 +11,8 @@ import { GarmentsService } from '../garments/garments.service';
 import { EmailDetail } from '../mail/templates';
 import { SalesPointsService } from '../sales-points/sales-points.service';
 import { EventActor, GarmentStatus } from '../shared/domain/enums';
-import { formatArs } from '../shared/format';
+import { addDays, addMonths } from '../shared/domain/terms';
+import { formatArs, formatDate } from '../shared/format';
 import { canTransition, GarmentAction } from '../shared/state-machine/garment.state-machine';
 import { calculateSalePrice } from '../shared/utils/price.util';
 import { MerchantDocument } from '../users/schemas/merchant.schema';
@@ -128,7 +129,7 @@ export class ProposalsService {
       throw new ForbiddenException('La prenda no pertenece al comercio');
     }
     this.ensureCanTransition(garment.status, 'ACCEPT_PROPOSAL');
-    await this.createAgreement(
+    const deliveryDeadline = await this.createAgreement(
       garmentId,
       proposal.requestedConsignorPrice,
       proposal.calculatedSalePrice,
@@ -141,6 +142,7 @@ export class ProposalsService {
       proposal.requestedConsignorPrice,
       proposal.calculatedSalePrice,
     );
+    details.push({ label: 'Entregala antes del', value: formatDate(deliveryDeadline) });
     await this.garments.applyAction(
       garmentId,
       'ACCEPT_PROPOSAL',
@@ -211,7 +213,7 @@ export class ProposalsService {
       throw new ConflictException('No hay contraoferta para aceptar');
     }
     this.ensureCanTransition(garment.status, 'ACCEPT_COUNTEROFFER');
-    await this.createAgreement(
+    const deliveryDeadline = await this.createAgreement(
       garmentId,
       proposal.counteroffer.consignorPrice,
       proposal.counteroffer.salePrice,
@@ -224,6 +226,7 @@ export class ProposalsService {
       proposal.counteroffer.consignorPrice,
       proposal.counteroffer.salePrice,
     );
+    details.push({ label: 'Plazo de entrega', value: `hasta el ${formatDate(deliveryDeadline)}` });
     await this.garments.applyAction(
       garmentId,
       'ACCEPT_COUNTEROFFER',
@@ -300,17 +303,23 @@ export class ProposalsService {
     agreedConsignorPrice: number,
     agreedSalePrice: number,
     merchant: MerchantDocument,
-  ): Promise<void> {
+  ): Promise<Date> {
     const agreedAt = new Date();
-    const saleDeadline = new Date(agreedAt);
-    saleDeadline.setMonth(saleDeadline.getMonth() + merchant.terms.saleWindowMonths);
+    const deliveryDeadline = addDays(agreedAt, merchant.terms.deliveryDays);
+    const { saleWindowMonths, deliveryDays, pickupDays } = merchant.terms;
     await this.agreements.create({
       garmentId,
       agreedConsignorPrice,
       agreedSalePrice,
       appliedCommission: merchant.commissionConfig.merchantPercentage,
       agreedAt,
-      saleDeadline,
+      // Provisoria hasta la recepción, que la recalcula (AgreementsService.startSaleWindow).
+      saleDeadline: addMonths(agreedAt, saleWindowMonths),
+      saleWindowMonths,
+      deliveryDays,
+      deliveryDeadline,
+      pickupDays,
     });
+    return deliveryDeadline;
   }
 }

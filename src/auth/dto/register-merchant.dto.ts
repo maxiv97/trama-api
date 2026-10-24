@@ -3,6 +3,7 @@ import {
   IsEmail,
   IsInt,
   IsNumber,
+  IsOptional,
   IsString,
   Max,
   MaxLength,
@@ -44,7 +45,10 @@ export class CommissionConfigDto {
 
 export class MerchantTermsDto {
   @IsInt() @Min(1) @Max(24) saleWindowMonths: number;
-  @IsInt() @Min(0) @Max(12) graceMonths: number;
+  // Opcionales para no romper clientes que todavía no los envían: se usan los defaults (alta)
+  // o los valores vigentes del comercio (actualización).
+  @IsOptional() @IsInt() @Min(1) @Max(30) deliveryDays?: number;
+  @IsOptional() @IsInt() @Min(1) @Max(60) pickupDays?: number;
   @IsInt() @Min(1) @Max(28) payoutDay: number;
 }
 

@@ -1,6 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import type { EventActor, GarmentCondition, GarmentStatus } from '../../shared/domain/enums';
+import type {
+  EventActor,
+  GarmentCondition,
+  GarmentStatus,
+  UnclaimedDisposition,
+} from '../../shared/domain/enums';
 import { baseSchemaOptions } from '../../shared/mongoose/schema-options';
 
 @Schema({ _id: false })
@@ -12,10 +17,21 @@ export class GarmentEvent {
 }
 export const GarmentEventSchema = SchemaFactory.createForClass(GarmentEvent);
 
+// Destino que el comercio registró para una prenda no retirada.
+@Schema({ _id: false })
+export class UnclaimedDispositionRecord {
+  @Prop({ required: true, type: String }) disposition: UnclaimedDisposition;
+  @Prop() note?: string;
+  @Prop({ required: true }) date: Date;
+  @Prop({ required: true }) handledBy: string;
+}
+export const UnclaimedDispositionSchema = SchemaFactory.createForClass(UnclaimedDispositionRecord);
+
 @Schema(baseSchemaOptions)
 export class Garment {
   @Prop({ required: true, index: true }) consignorId: string;
-  @Prop({ index: true }) merchantId?: string;
+  // Sin índice simple: lo cubren como prefijo los índices compuestos {merchantId, …} de abajo.
+  @Prop() merchantId?: string;
   // Código legible para que el comercio identifique/busque la prenda (TRA-00001).
   @Prop({ unique: true, sparse: true }) code?: string;
   @Prop({ required: true }) name: string;
@@ -33,6 +49,11 @@ export class Garment {
   @Prop({ required: true }) createdAt: Date;
   @Prop() salesPointId?: string;
   @Prop({ type: [GarmentEventSchema], default: [] }) timeline: GarmentEvent[];
+  @Prop({ type: UnclaimedDispositionSchema }) unclaimedDisposition?: UnclaimedDispositionRecord;
 }
 export type GarmentDocument = HydratedDocument<Garment>;
 export const GarmentSchema = SchemaFactory.createForClass(Garment);
+// Reportes, panel e inventario filtran por comercio y estado; el directorio de cedentes y la
+// verificación de pertenencia, por comercio y cedente.
+GarmentSchema.index({ merchantId: 1, status: 1 });
+GarmentSchema.index({ merchantId: 1, consignorId: 1 });

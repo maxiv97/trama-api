@@ -398,10 +398,11 @@ export const SEED_AGREEMENTS: SeedAgreement[] = [
     agreedConsignorPrice: 3000,
     agreedSalePrice: 10000,
     appliedCommission: 70,
-    // gar-2 is the only garment still in stock: keep its deadline live (past the sale window, inside
-    // the grace period) so it stays a current "expiring consignment" whenever the seed runs.
-    agreedAt: daysFromNow(-100),
-    saleDeadline: daysFromNow(-10),
+    // gar-2 is the only garment still in stock: keep its sale deadline 20 days ahead so it stays a
+    // current "expiring consignment" whenever the seed runs (since 23/10/2026 a garment past its
+    // sale deadline is no longer in stock: the deadlines job moves it to awaiting_pickup).
+    agreedAt: daysFromNow(-70),
+    saleDeadline: daysFromNow(20),
   },
   {
     garmentKey: 'gar-3',

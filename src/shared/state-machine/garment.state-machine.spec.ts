@@ -63,6 +63,28 @@ describe('garment state machine', () => {
     expect(availableActions('cancelled')).toEqual([]);
   });
 
+  it('vence la entrega de una prenda acordada o rechazada en la recepción', () => {
+    expect(transition('agreed', 'EXPIRE_DELIVERY')).toBe('delivery_expired');
+    expect(transition('rejected', 'EXPIRE_DELIVERY')).toBe('delivery_expired');
+    expect(availableActions('delivery_expired')).toEqual([]);
+  });
+
+  it('pasa a por retirar al vencer la venta y cierra con la devolución o sin retiro', () => {
+    expect(transition('in_stock', 'EXPIRE_SALE')).toBe('awaiting_pickup');
+    expect(transition('with_remarks', 'EXPIRE_SALE')).toBe('awaiting_pickup');
+    expect(transition('awaiting_pickup', 'REGISTER_RETURN')).toBe('returned');
+    expect(transition('awaiting_pickup', 'MARK_UNCLAIMED')).toBe('unclaimed');
+    expect(availableActions('returned')).toEqual([]);
+    expect(availableActions('unclaimed')).toEqual([]);
+  });
+
+  it('no permite vender una prenda por retirar ni vencer lo que ya se vendió', () => {
+    expect(() => transition('awaiting_pickup', 'REGISTER_SALE')).toThrow();
+    expect(() => transition('sold', 'EXPIRE_SALE')).toThrow();
+    expect(() => transition('in_stock', 'EXPIRE_DELIVERY')).toThrow();
+    expect(() => transition('agreed', 'EXPIRE_SALE')).toThrow();
+  });
+
   it('canTransition coincide con transition', () => {
     expect(canTransition('under_review', 'ACCEPT_PROPOSAL')).toBe(true);
     expect(canTransition('under_review', 'REGISTER_SALE')).toBe(false);

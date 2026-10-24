@@ -21,6 +21,10 @@ import { SummaryKpis, SummaryReport, WeeklyPoint } from './summary';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+function uniqueIds(ids: (string | undefined)[]): string[] {
+  return [...new Set(ids.filter((id): id is string => !!id))];
+}
+
 const ACCEPTED_STATUSES: GarmentStatus[] = [
   'agreed',
   'in_stock',
@@ -28,10 +32,22 @@ const ACCEPTED_STATUSES: GarmentStatus[] = [
   'rejected',
   'sold',
   'paid_out',
+  'delivery_expired',
+  'awaiting_pickup',
+  'returned',
+  'unclaimed',
 ];
 
 // Physically taken into the shop (whether still in stock or already sold); the base for conversion.
-const RECEIVED_STATUSES: GarmentStatus[] = ['in_stock', 'with_remarks', 'sold', 'paid_out'];
+const RECEIVED_STATUSES: GarmentStatus[] = [
+  'in_stock',
+  'with_remarks',
+  'sold',
+  'paid_out',
+  'awaiting_pickup',
+  'returned',
+  'unclaimed',
+];
 
 @Injectable()
 export class ReportsService {
@@ -86,7 +102,9 @@ export class ReportsService {
     const receptions = (await this.receptions.byGarmentIds([...garmentById.keys()])).filter(
       (r) => r.discrepancies.length > 0 && dateInRange(r.receivedAt, filters),
     );
-    const consignors = await this.users.consignorSummaries();
+    const consignors = await this.users.consignorSummaries(
+      uniqueIds(receptions.map((r) => garmentById.get(r.garmentId)?.consignorId)),
+    );
     const consignorName = new Map(consignors.map((c) => [c.id, c.name]));
     const now = Date.now();
 
@@ -339,9 +357,8 @@ export class ReportsService {
     withinDays = 30,
     filters: ReportFilters = {},
   ): Promise<ExpiringConsignment[]> {
-    const merchant = await this.users.findMerchantById(merchantId);
-    const graceMonths = merchant?.terms.graceMonths ?? 0;
-
+    // Desde el 23/10/2026 el período de gracia dejó de extender la venta (pasó a ser el plazo para
+    // retirar): el plazo efectivo de una prenda en stock es la fecha límite de venta del acuerdo.
     const inStock = (await this.garments.metaByMerchant(merchantId)).filter(
       (garment) =>
         (garment.status === 'in_stock' || garment.status === 'with_remarks') &&
@@ -349,7 +366,9 @@ export class ReportsService {
     );
     const agreements = await this.agreements.listForUser('merchant', merchantId);
     const agreementByGarment = new Map(agreements.map((a) => [a.garmentId, a]));
-    const consignors = await this.users.consignorSummaries();
+    const consignors = await this.users.consignorSummaries(
+      uniqueIds(inStock.map((garment) => garment.consignorId)),
+    );
     const consignorById = new Map(consignors.map((c) => [c.id, c]));
 
     const now = new Date();
@@ -359,7 +378,7 @@ export class ReportsService {
     for (const garment of inStock) {
       const agreement = agreementByGarment.get(garment.id);
       if (!agreement) continue;
-      const effectiveDeadline = this.addMonths(agreement.saleDeadline, graceMonths);
+      const effectiveDeadline = agreement.saleDeadline;
       if (effectiveDeadline > threshold) continue;
       const daysLeft = Math.ceil((effectiveDeadline.getTime() - now.getTime()) / DAY_MS);
       items.push({
@@ -445,14 +464,13 @@ export class ReportsService {
     const agreements = await this.agreements.listForUser('merchant', merchantId);
     const agreementByGarment = new Map(agreements.map((a) => [a.garmentId, a]));
 
-    const graceMonths = merchant?.terms.graceMonths ?? 0;
     const threshold = this.addDays(new Date(), expiryDays);
     let expiringCount = 0;
     for (const garment of garments) {
       if (garment.status !== 'in_stock' && garment.status !== 'with_remarks') continue;
       const agreement = agreementByGarment.get(garment.id);
       if (!agreement) continue;
-      if (this.addMonths(agreement.saleDeadline, graceMonths) <= threshold) expiringCount += 1;
+      if (agreement.saleDeadline <= threshold) expiringCount += 1;
     }
 
     return {
@@ -462,6 +480,10 @@ export class ReportsService {
       weekly: this.weeklyFromSales(sales, 6),
       pendingCount: garments.filter((g) => g.status === 'under_review').length,
       expiringCount,
+      awaitingPickupCount: garments.filter((g) => g.status === 'awaiting_pickup').length,
+      unclaimedPendingCount: garments.filter(
+        (g) => g.status === 'unclaimed' && !g.unclaimedDisposition,
+      ).length,
     };
   }
 
@@ -486,12 +508,6 @@ export class ReportsService {
   private addDays(date: Date, days: number): Date {
     const result = new Date(date);
     result.setDate(result.getDate() + days);
-    return result;
-  }
-
-  private addMonths(date: Date, months: number): Date {
-    const result = new Date(date);
-    result.setMonth(result.getMonth() + months);
     return result;
   }
 }
