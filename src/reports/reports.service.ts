@@ -6,11 +6,16 @@ import { GarmentDocument } from '../garments/schemas/garment.schema';
 import { Sale } from '../sales/schemas/sale.schema';
 import { ReceptionsService } from '../receptions/receptions.service';
 import { DashboardReport } from './dashboard';
-import { GarmentStatus, ReceptionDiscrepancy } from '../shared/domain/enums';
+import {
+  GarmentStatus,
+  ReceptionDiscrepancy,
+  UnclaimedDisposition,
+} from '../shared/domain/enums';
 import { SalesService } from '../sales/sales.service';
 import { UsersService } from '../users/users.service';
 import { CategorySales } from './category-sales';
 import { ConsignorPerformance } from './consignor-performance';
+import { ExpiryOutcomes } from './expiry-outcomes';
 import { DiscrepancyDetailRow } from './discrepancy-detail';
 import { ExpiringConsignment } from './expiring-consignment';
 import { PointSales } from './point-sales';
@@ -48,6 +53,23 @@ const RECEIVED_STATUSES: GarmentStatus[] = [
   'returned',
   'unclaimed',
 ];
+
+// El cedente entregó la prenda acordada (llegó al comercio al menos una vez); el resto de las
+// acordadas es incumplimiento de entrega. "rejected" cuenta como entregada: la trajo, aunque la
+// recepción la haya rechazado.
+const DELIVERED_STATUSES: GarmentStatus[] = [
+  'in_stock',
+  'with_remarks',
+  'rejected',
+  'sold',
+  'paid_out',
+  'awaiting_pickup',
+  'returned',
+  'unclaimed',
+];
+
+// Terminaron la ventana de venta sin venderse (pasaron por Por retirar).
+const EXPIRED_STATUSES: GarmentStatus[] = ['awaiting_pickup', 'returned', 'unclaimed'];
 
 @Injectable()
 export class ReportsService {
@@ -232,6 +254,17 @@ export class ReportsService {
       // base as the by-category conversion, so the two reports stay comparable.
       const receivedCount = owned.filter((g) => RECEIVED_STATUSES.includes(g.status)).length;
 
+      // Cumplimiento: entrega (acordó y trajo la prenda) y retiro (se venció la venta y la fue a
+      // buscar). Las tasas sólo miran las decididas, no las que siguen en curso.
+      const deliveredCount = owned.filter((g) => DELIVERED_STATUSES.includes(g.status)).length;
+      const deliveryExpiredCount = owned.filter((g) => g.status === 'delivery_expired').length;
+      const deliveryDecided = deliveredCount + deliveryExpiredCount;
+      const expiredCount = owned.filter((g) => EXPIRED_STATUSES.includes(g.status)).length;
+      const returnedCount = owned.filter((g) => g.status === 'returned').length;
+      const unclaimedCount = owned.filter((g) => g.status === 'unclaimed').length;
+      const awaitingPickupCount = owned.filter((g) => g.status === 'awaiting_pickup').length;
+      const pickupDecided = returnedCount + unclaimedCount;
+
       let liquidatedAmount = 0;
       let pendingAmount = 0;
       let merchantProfit = 0;
@@ -271,10 +304,53 @@ export class ReportsService {
         merchantProfit,
         paidCount,
         avgPayoutDays: paidCount ? Math.round(payoutDaysTotal / paidCount) : null,
+        deliveredCount,
+        deliveryExpiredCount,
+        deliveryRate: deliveryDecided
+          ? Math.round((deliveredCount / deliveryDecided) * 100)
+          : null,
+        expiredCount,
+        returnedCount,
+        unclaimedCount,
+        awaitingPickupCount,
+        pickupRate: pickupDecided
+          ? Math.round((returnedCount / pickupDecided) * 100)
+          : null,
       };
     });
 
     return rows.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  // Stock y vencimientos del comercio: de las prendas que terminaron la ventana sin venderse,
+  // cuántas retiró el cedente y cuántas no, y qué destino se les dio a las no retiradas. Privado
+  // del comercio: sólo cuenta sus propias prendas (metaByMerchant).
+  async expiryOutcomes(
+    merchantId: string,
+    filters: ReportFilters = {},
+  ): Promise<ExpiryOutcomes> {
+    const garments = (await this.garments.metaByMerchant(merchantId)).filter((g) =>
+      garmentInScope(g, filters),
+    );
+    const expired = garments.filter((g) => EXPIRED_STATUSES.includes(g.status));
+    const returnedCount = expired.filter((g) => g.status === 'returned').length;
+    const unclaimed = expired.filter((g) => g.status === 'unclaimed');
+    const unclaimedCount = unclaimed.length;
+    const awaitingPickupCount = expired.filter((g) => g.status === 'awaiting_pickup').length;
+    const pickupDecided = returnedCount + unclaimedCount;
+    const byDisposition = (disposition: UnclaimedDisposition): number =>
+      unclaimed.filter((g) => g.unclaimedDisposition?.disposition === disposition).length;
+    return {
+      expiredCount: expired.length,
+      awaitingPickupCount,
+      returnedCount,
+      unclaimedCount,
+      pickupRate: pickupDecided ? Math.round((returnedCount / pickupDecided) * 100) : null,
+      donatedCount: byDisposition('donated'),
+      keptCount: byDisposition('kept'),
+      otherCount: byDisposition('other'),
+      unclaimedPendingCount: unclaimed.filter((g) => !g.unclaimedDisposition).length,
+    };
   }
 
   async salesByCategory(merchantId: string, filters: ReportFilters = {}): Promise<CategorySales[]> {
