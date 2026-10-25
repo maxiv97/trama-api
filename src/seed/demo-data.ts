@@ -1773,28 +1773,89 @@ function shiftDate(date: Date, ms: number): Date {
 function shiftGarment(
   dataset: DemoDataset,
   garment: DemoGarment,
-  agreement: DemoAgreement,
+  agreement: DemoAgreement | undefined,
   ms: number,
 ): void {
   garment.createdAt = shiftDate(garment.createdAt, ms);
   for (const event of garment.timeline) event.date = shiftDate(event.date, ms);
+  if (garment.unclaimedDisposition) {
+    garment.unclaimedDisposition.date = shiftDate(
+      garment.unclaimedDisposition.date,
+      ms,
+    );
+  }
   for (const p of dataset.proposals) {
     if (p.garmentKey !== garment.key) continue;
     p.createdAt = shiftDate(p.createdAt, ms);
     if (p.counteroffer)
       p.counteroffer.date = shiftDate(p.counteroffer.date, ms);
   }
-  agreement.agreedAt = shiftDate(agreement.agreedAt, ms);
-  agreement.saleDeadline = shiftDate(agreement.saleDeadline, ms);
-  agreement.deliveryDeadline = shiftDate(agreement.deliveryDeadline, ms);
-  if (agreement.pickupDeadline)
-    agreement.pickupDeadline = shiftDate(agreement.pickupDeadline, ms);
+  if (agreement) {
+    agreement.agreedAt = shiftDate(agreement.agreedAt, ms);
+    agreement.saleDeadline = shiftDate(agreement.saleDeadline, ms);
+    agreement.deliveryDeadline = shiftDate(agreement.deliveryDeadline, ms);
+    if (agreement.pickupDeadline)
+      agreement.pickupDeadline = shiftDate(agreement.pickupDeadline, ms);
+  }
   for (const r of dataset.receptions) {
     if (r.garmentKey === garment.key)
       r.receivedAt = shiftDate(r.receivedAt, ms);
   }
+  for (const sale of dataset.sales) {
+    if (sale.garmentKey !== garment.key) continue;
+    sale.soldAt = shiftDate(sale.soldAt, ms);
+    if (sale.paidAt) sale.paidAt = shiftDate(sale.paidAt, ms);
+  }
+  for (const r of dataset.returns) {
+    if (r.garmentKey === garment.key)
+      r.returnedAt = shiftDate(r.returnedAt, ms);
+  }
   for (const n of dataset.notifications) {
     if (n.garmentKey === garment.key) n.date = shiftDate(n.date, ms);
+  }
+}
+
+// Fechas de los hechos ya ocurridos de una prenda (no incluye los plazos, que pueden ser futuros).
+function eventDates(garment: DemoGarment, dataset: DemoDataset): Date[] {
+  const key = garment.key;
+  return [
+    garment.createdAt,
+    ...garment.timeline.map((e) => e.date),
+    ...dataset.notifications
+      .filter((n) => n.garmentKey === key)
+      .map((n) => n.date),
+    ...dataset.receptions
+      .filter((r) => r.garmentKey === key)
+      .map((r) => r.receivedAt),
+    ...dataset.sales
+      .filter((sale) => sale.garmentKey === key)
+      .flatMap((sale) =>
+        sale.paidAt ? [sale.soldAt, sale.paidAt] : [sale.soldAt],
+      ),
+    ...dataset.returns
+      .filter((r) => r.garmentKey === key)
+      .map((r) => r.returnedAt),
+  ];
+}
+
+// Las prendas recientes encadenan varios pasos con días al azar (propuesta, acuerdo, recepción,
+// venta) y alguno podía caer después de hoy (por ejemplo, una venta con fecha de la semana
+// siguiente). Se corre hacia atrás toda la historia de esas prendas, con sus plazos.
+function keepHistoryInPast(now: Date, dataset: DemoDataset): void {
+  for (const garment of dataset.garments) {
+    const latest = Math.max(
+      ...eventDates(garment, dataset).map((d) => d.getTime()),
+    );
+    if (latest <= now.getTime()) continue;
+    const agreement = dataset.agreements.find(
+      (a) => a.garmentKey === garment.key,
+    );
+    shiftGarment(
+      dataset,
+      garment,
+      agreement,
+      now.getTime() - latest - 60 * 60 * 1000,
+    );
   }
 }
 
@@ -1803,14 +1864,7 @@ function assertNotInFuture(
   dataset: DemoDataset,
   now: Date,
 ): void {
-  const dates = [
-    garment.createdAt,
-    ...garment.timeline.map((e) => e.date),
-    ...dataset.notifications
-      .filter((n) => n.garmentKey === garment.key)
-      .map((n) => n.date),
-  ];
-  if (dates.some((d) => d.getTime() > now.getTime())) {
+  if (eventDates(garment, dataset).some((d) => d.getTime() > now.getTime())) {
     throw new Error(
       `Recorrido de plazos: la prenda ${garment.key} quedó con fechas futuras`,
     );
@@ -1874,6 +1928,7 @@ export function buildDemoDataset(now: Date = new Date()): DemoDataset {
       buildGarment(rng, now, cohort, dataset);
     }
   }
+  keepHistoryInPast(now, dataset);
   buildDeadlineScenarios(now, dataset);
   return dataset;
 }
