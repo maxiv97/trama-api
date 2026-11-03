@@ -134,7 +134,7 @@ export class ProposalsService {
     }
   }
 
-  async pendingFromListOfStatusProposals(
+  async proposalsForMerchant(
     merchantId: string,
     statuses: GarmentStatus[],
   ): Promise<ProposalDocument[]> {
@@ -146,7 +146,7 @@ export class ProposalsService {
   }
 
   pendingForMerchant(merchantId: string): Promise<ProposalDocument[]> {
-    return this.pendingFromListOfStatusProposals(merchantId, ['under_review']);
+    return this.proposalsForMerchant(merchantId, ['under_review']);
   }
 
   async accept(

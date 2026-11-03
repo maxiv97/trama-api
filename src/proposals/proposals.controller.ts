@@ -56,7 +56,7 @@ export class ProposalsController {
     @CurrentUser() user: SessionUser,
     @Query() query: ProposalsQueryDto,
   ) {
-    return this.proposals.pendingFromListOfStatusProposals(
+    return this.proposals.proposalsForMerchant(
       user.id,
       query.status ?? ['under_review'],
     );
