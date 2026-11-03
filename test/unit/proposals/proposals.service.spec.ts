@@ -251,7 +251,7 @@ describe('ProposalsService', () => {
     await w.proposals.reject(rejected.id, 'merchant');
     await agreed(w, c, m, 1000, 'D');
 
-    const found = await w.proposals.pendingFromListOfStatusProposals(m.id, [
+    const found = await w.proposals.proposalsForMerchant(m.id, [
       'under_review',
       'counteroffer',
     ]);
@@ -264,7 +264,7 @@ describe('ProposalsService', () => {
   it('propuestas del comercio: no trae las de otro comercio', async () => {
     const other = await newMerchant(w);
     await proposed(w, c, other, 1000, 'Ajena');
-    const found = await w.proposals.pendingFromListOfStatusProposals(m.id, [
+    const found = await w.proposals.proposalsForMerchant(m.id, [
       'under_review',
     ]);
     expect(found).toHaveLength(0);
