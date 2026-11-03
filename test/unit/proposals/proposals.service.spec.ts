@@ -242,4 +242,31 @@ describe('ProposalsService', () => {
     const pending = await w.proposals.pendingForMerchant(m.id);
     expect(pending).toHaveLength(1);
   });
+
+  it('propuestas del comercio filtradas por varios estados en una sola consulta', async () => {
+    const inReview = await proposed(w, c, m, 1000, 'A');
+    const countered = await proposed(w, c, m, 1000, 'B');
+    await w.proposals.counteroffer(countered.id, m.id, 800);
+    const rejected = await proposed(w, c, m, 1000, 'C');
+    await w.proposals.reject(rejected.id, 'merchant');
+    await agreed(w, c, m, 1000, 'D');
+
+    const found = await w.proposals.pendingFromListOfStatusProposals(m.id, [
+      'under_review',
+      'counteroffer',
+    ]);
+
+    expect(found.map((proposal) => proposal.garmentId).sort()).toEqual(
+      [inReview.id, countered.id].sort(),
+    );
+  });
+
+  it('propuestas del comercio: no trae las de otro comercio', async () => {
+    const other = await newMerchant(w);
+    await proposed(w, c, other, 1000, 'Ajena');
+    const found = await w.proposals.pendingFromListOfStatusProposals(m.id, [
+      'under_review',
+    ]);
+    expect(found).toHaveLength(0);
+  });
 });
