@@ -46,12 +46,6 @@ export class ProposalsController {
 
   @Get('proposals')
   @Roles('merchant')
-  pending(@CurrentUser() user: SessionUser) {
-    return this.proposals.pendingForMerchant(user.id);
-  }
-
-  @Get('proposals')
-  @Roles('merchant')
   forMerchant(
     @CurrentUser() user: SessionUser,
     @Query() query: ProposalsQueryDto,
