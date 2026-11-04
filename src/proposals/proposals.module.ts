@@ -10,7 +10,9 @@ import { Proposal, ProposalSchema } from './schemas/proposal.schema';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Proposal.name, schema: ProposalSchema }]),
+    MongooseModule.forFeature([
+      { name: Proposal.name, schema: ProposalSchema },
+    ]),
     GarmentsModule,
     AgreementsModule,
     SalesPointsModule,

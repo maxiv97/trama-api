@@ -107,7 +107,8 @@ describe('Controladores (delegación en los servicios)', () => {
     pc.create(consignor, {} as never);
     pc.byGarment(consignor, 'g');
     pc.updateDraft(consignor, 'g', {} as never);
-    pc.pending(merchant);
+    pc.forMerchant(merchant, {});
+    pc.forMerchant(merchant, { status: ['counteroffer'] });
     pc.getById(merchant, 'p');
     pc.accept(merchant, 'g');
     pc.counteroffer(merchant, 'g', { consignorPrice: 5 });

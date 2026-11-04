@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { SessionUser } from '../auth/session-user';
@@ -6,6 +14,7 @@ import { CounterofferDto } from './dto/counteroffer.dto';
 import { CreateProposalDto } from './dto/create-proposal.dto';
 import { UpdateDraftDto } from './dto/update-draft.dto';
 import { ProposalsService } from './proposals.service';
+import { ProposalsQueryDto } from './dto/proposals-query.dto';
 
 @Controller()
 export class ProposalsController {
@@ -18,7 +27,10 @@ export class ProposalsController {
   }
 
   @Get('garments/:garmentId/proposal')
-  byGarment(@CurrentUser() user: SessionUser, @Param('garmentId') garmentId: string) {
+  byGarment(
+    @CurrentUser() user: SessionUser,
+    @Param('garmentId') garmentId: string,
+  ) {
     return this.proposals.byGarmentForUser(garmentId, user.id, user.role);
   }
 
@@ -34,8 +46,14 @@ export class ProposalsController {
 
   @Get('proposals')
   @Roles('merchant')
-  pending(@CurrentUser() user: SessionUser) {
-    return this.proposals.pendingForMerchant(user.id);
+  forMerchant(
+    @CurrentUser() user: SessionUser,
+    @Query() query: ProposalsQueryDto,
+  ) {
+    return this.proposals.proposalsForMerchant(
+      user.id,
+      query.status ?? ['under_review'],
+    );
   }
 
   @Get('proposals/:id')
@@ -45,7 +63,10 @@ export class ProposalsController {
 
   @Post('proposals/:garmentId/accept')
   @Roles('merchant')
-  accept(@CurrentUser() user: SessionUser, @Param('garmentId') garmentId: string) {
+  accept(
+    @CurrentUser() user: SessionUser,
+    @Param('garmentId') garmentId: string,
+  ) {
     return this.proposals.accept(garmentId, user.id);
   }
 
@@ -61,12 +82,18 @@ export class ProposalsController {
 
   @Post('proposals/:garmentId/accept-counteroffer')
   @Roles('consignor')
-  acceptCounteroffer(@CurrentUser() user: SessionUser, @Param('garmentId') garmentId: string) {
+  acceptCounteroffer(
+    @CurrentUser() user: SessionUser,
+    @Param('garmentId') garmentId: string,
+  ) {
     return this.proposals.acceptCounteroffer(garmentId, user.id);
   }
 
   @Post('proposals/:garmentId/reject')
-  reject(@CurrentUser() user: SessionUser, @Param('garmentId') garmentId: string) {
+  reject(
+    @CurrentUser() user: SessionUser,
+    @Param('garmentId') garmentId: string,
+  ) {
     return this.proposals.reject(garmentId, user.role);
   }
 }

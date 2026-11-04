@@ -13,7 +13,10 @@ import { SalesPointsService } from '../sales-points/sales-points.service';
 import { EventActor, GarmentStatus } from '../shared/domain/enums';
 import { addDays, addMonths } from '../shared/domain/terms';
 import { formatArs, formatDate } from '../shared/format';
-import { canTransition, GarmentAction } from '../shared/state-machine/garment.state-machine';
+import {
+  canTransition,
+  GarmentAction,
+} from '../shared/state-machine/garment.state-machine';
 import { calculateSalePrice } from '../shared/utils/price.util';
 import { MerchantDocument } from '../users/schemas/merchant.schema';
 import { UsersService } from '../users/users.service';
@@ -31,7 +34,10 @@ export class ProposalsService {
     private readonly salesPoints: SalesPointsService,
   ) {}
 
-  async create(consignorId: string, dto: CreateProposalDto): Promise<ProposalDocument> {
+  async create(
+    consignorId: string,
+    dto: CreateProposalDto,
+  ): Promise<ProposalDocument> {
     const garment = await this.garments.getByIdOrFail(dto.garmentId);
     if (garment.consignorId !== consignorId) {
       throw new ForbiddenException('La prenda no pertenece al cedente');
@@ -96,35 +102,59 @@ export class ProposalsService {
   }
 
   // La propuesta solo puede consultarla el cedente o el comercio de la prenda asociada.
-  async byGarmentForUser(garmentId: string, userId: string, role: string): Promise<ProposalDocument | null> {
+  async byGarmentForUser(
+    garmentId: string,
+    userId: string,
+    role: string,
+  ): Promise<ProposalDocument | null> {
     await this.assertGarmentAccess(garmentId, userId, role);
     return this.byGarment(garmentId);
   }
 
-  async getByIdForUser(id: string, userId: string, role: string): Promise<ProposalDocument> {
+  async getByIdForUser(
+    id: string,
+    userId: string,
+    role: string,
+  ): Promise<ProposalDocument> {
     const proposal = await this.getByIdOrFail(id);
     await this.assertGarmentAccess(proposal.garmentId, userId, role);
     return proposal;
   }
 
-  private async assertGarmentAccess(garmentId: string, userId: string, role: string): Promise<void> {
+  private async assertGarmentAccess(
+    garmentId: string,
+    userId: string,
+    role: string,
+  ): Promise<void> {
     const garment = await this.garments.getByIdOrFail(garmentId);
-    const ownerId = role === 'merchant' ? garment.merchantId : garment.consignorId;
+    const ownerId =
+      role === 'merchant' ? garment.merchantId : garment.consignorId;
     if (ownerId !== userId) {
       throw new ForbiddenException('La propuesta no te pertenece');
     }
   }
 
-  async pendingForMerchant(merchantId: string): Promise<ProposalDocument[]> {
+  async proposalsForMerchant(
+    merchantId: string,
+    statuses: GarmentStatus[],
+  ): Promise<ProposalDocument[]> {
     const garments = await this.garments.metaByMerchant(merchantId);
     const garmentIds = garments
-      .filter((garment) => garment.status === 'under_review')
+      .filter((garment) => statuses.includes(garment.status))
       .map((garment) => garment.id);
     return this.proposalModel.find({ garmentId: { $in: garmentIds } }).exec();
   }
 
-  async accept(garmentId: string, merchantId: string): Promise<ProposalDocument> {
-    const { garment, proposal, merchant } = await this.loadForNegotiation(garmentId);
+  pendingForMerchant(merchantId: string): Promise<ProposalDocument[]> {
+    return this.proposalsForMerchant(merchantId, ['under_review']);
+  }
+
+  async accept(
+    garmentId: string,
+    merchantId: string,
+  ): Promise<ProposalDocument> {
+    const { garment, proposal, merchant } =
+      await this.loadForNegotiation(garmentId);
     if (garment.merchantId !== merchantId) {
       throw new ForbiddenException('La prenda no pertenece al comercio');
     }
@@ -142,7 +172,10 @@ export class ProposalsService {
       proposal.requestedConsignorPrice,
       proposal.calculatedSalePrice,
     );
-    details.push({ label: 'Entregala antes del', value: formatDate(deliveryDeadline) });
+    details.push({
+      label: 'Entregala antes del',
+      value: formatDate(deliveryDeadline),
+    });
     await this.garments.applyAction(
       garmentId,
       'ACCEPT_PROPOSAL',
@@ -167,7 +200,10 @@ export class ProposalsService {
     if (salesPointId) {
       try {
         const point = await this.salesPoints.getById(salesPointId);
-        details.push({ label: 'Dónde entregar', value: `${point.name} · ${point.address}` });
+        details.push({
+          label: 'Dónde entregar',
+          value: `${point.name} · ${point.address}`,
+        });
         details.push({
           label: 'Recepción',
           value: `${point.receptionSchedule.days} · ${point.receptionSchedule.hours}`,
@@ -184,7 +220,8 @@ export class ProposalsService {
     merchantId: string,
     consignorPrice: number,
   ): Promise<ProposalDocument> {
-    const { garment, proposal, merchant } = await this.loadForNegotiation(garmentId);
+    const { garment, proposal, merchant } =
+      await this.loadForNegotiation(garmentId);
     if (garment.merchantId !== merchantId) {
       throw new ForbiddenException('La prenda no pertenece al comercio');
     }
@@ -193,19 +230,32 @@ export class ProposalsService {
       consignorPrice,
       merchant.commissionConfig.consignorPercentage,
     );
-    await this.garments.applyAction(garmentId, 'COUNTER_OFFER', 'merchant', 'Contraoferta enviada', [
-      { label: 'Tu pedido original', value: formatArs(proposal.requestedConsignorPrice) },
-      { label: 'Contraoferta (cobrás)', value: formatArs(consignorPrice) },
-      { label: 'Precio de venta', value: formatArs(salePrice) },
-    ]);
+    await this.garments.applyAction(
+      garmentId,
+      'COUNTER_OFFER',
+      'merchant',
+      'Contraoferta enviada',
+      [
+        {
+          label: 'Tu pedido original',
+          value: formatArs(proposal.requestedConsignorPrice),
+        },
+        { label: 'Contraoferta (cobrás)', value: formatArs(consignorPrice) },
+        { label: 'Precio de venta', value: formatArs(salePrice) },
+      ],
+    );
     proposal.counteroffer = { consignorPrice, salePrice, date: new Date() };
     proposal.status = 'counteroffer';
     await proposal.save();
     return proposal;
   }
 
-  async acceptCounteroffer(garmentId: string, consignorId: string): Promise<ProposalDocument> {
-    const { garment, proposal, merchant } = await this.loadForNegotiation(garmentId);
+  async acceptCounteroffer(
+    garmentId: string,
+    consignorId: string,
+  ): Promise<ProposalDocument> {
+    const { garment, proposal, merchant } =
+      await this.loadForNegotiation(garmentId);
     if (garment.consignorId !== consignorId) {
       throw new ForbiddenException('La prenda no pertenece al cedente');
     }
@@ -226,7 +276,10 @@ export class ProposalsService {
       proposal.counteroffer.consignorPrice,
       proposal.counteroffer.salePrice,
     );
-    details.push({ label: 'Plazo de entrega', value: `hasta el ${formatDate(deliveryDeadline)}` });
+    details.push({
+      label: 'Plazo de entrega',
+      value: `hasta el ${formatDate(deliveryDeadline)}`,
+    });
     await this.garments.applyAction(
       garmentId,
       'ACCEPT_COUNTEROFFER',
@@ -250,7 +303,10 @@ export class ProposalsService {
     if (salesPointId) {
       try {
         const point = await this.salesPoints.getById(salesPointId);
-        details.push({ label: 'La recibís en', value: `${point.name} · ${point.address}` });
+        details.push({
+          label: 'La recibís en',
+          value: `${point.name} · ${point.address}`,
+        });
       } catch {
         // Sales point unavailable: keep the amounts.
       }
@@ -258,7 +314,11 @@ export class ProposalsService {
     return details;
   }
 
-  async reject(garmentId: string, actor: EventActor, note?: string): Promise<ProposalDocument> {
+  async reject(
+    garmentId: string,
+    actor: EventActor,
+    note?: string,
+  ): Promise<ProposalDocument> {
     const proposal = await this.proposalOrFail(garmentId);
     await this.garments.applyAction(garmentId, 'REJECT', actor, note);
     proposal.status = 'no_agreement';
@@ -276,12 +336,16 @@ export class ProposalsService {
   private async proposalOrFail(garmentId: string): Promise<ProposalDocument> {
     const proposal = await this.byGarment(garmentId);
     if (!proposal) {
-      throw new NotFoundException(`Propuesta no encontrada para la prenda: ${garmentId}`);
+      throw new NotFoundException(
+        `Propuesta no encontrada para la prenda: ${garmentId}`,
+      );
     }
     return proposal;
   }
 
-  private async merchantForGarment(merchantId?: string): Promise<MerchantDocument> {
+  private async merchantForGarment(
+    merchantId?: string,
+  ): Promise<MerchantDocument> {
     if (!merchantId) {
       throw new NotFoundException('La prenda no tiene comercio asignado');
     }
@@ -292,7 +356,10 @@ export class ProposalsService {
     return merchant;
   }
 
-  private ensureCanTransition(status: GarmentStatus, action: GarmentAction): void {
+  private ensureCanTransition(
+    status: GarmentStatus,
+    action: GarmentAction,
+  ): void {
     if (!canTransition(status, action)) {
       throw new ConflictException(`Transición inválida: ${status} + ${action}`);
     }
